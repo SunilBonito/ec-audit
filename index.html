@@ -325,7 +325,15 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   </div>
 
   <!-- Flagged items -->
-  <p class="sh">Flagged items & comments — <span id="iss-round-label">Audit 1</span></p>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+    <p class="sh" style="margin-bottom:0;">Flagged items & comments — <span id="iss-round-label">Audit 1</span></p>
+    <button id="download-issues-btn" onclick="downloadIssuesExcel()"
+      style="display:none;align-items:center;gap:6px;background:var(--navy);color:#fff;border:none;
+             border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;
+             font-family:inherit;transition:background 0.15s;white-space:nowrap;">
+      ⬇ Download Excel
+    </button>
+  </div>
   <div class="icard">
     <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--bg);">
       <span style="font-size:11px;font-weight:600;color:var(--ink3);letter-spacing:0.05em;text-transform:uppercase;">Items</span>
@@ -570,16 +578,20 @@ function aggregateRound(roundIdx) {
         if (isRBS) cRBS++;
         if (status.includes('check') || status.includes('missing') || status.includes('disc')) cCheck++;
 
-        // Collect flagged items
-        const hasIssue = cDisc>0||cMiss>0||status.includes('check')||
-                         (comment && !['meets specs','good finish',''].includes(comment.toLowerCase()));
-        if (comment && comment.length>3 &&
-            !['meets specs','good finish'].includes(comment.toLowerCase())) {
+        // Collect flagged items — only rows with a genuine issue status
+        // (Check / Missing / Discontinued). Skip OK and RBS-only rows.
+        const statusIsIssue = status.includes('check') || status.includes('missing') || status.includes('disc');
+        const skipComments  = ['meets specs','good finish','represented by sample','rbs',''];
+        const hasComment    = comment && comment.length>3 &&
+                              !skipComments.includes(comment.toLowerCase());
+        if (statusIsIssue || (hasComment && !status.includes('ok'))) {
           flagged.push({
             loc, cat:catName,
-            name: matName.slice(0,55),
-            comment: comment.slice(0,90),
-            status: (row[base+8]||'').toString().trim(),
+            erp:     (row[1]||'').toString().trim(),
+            name:    matName.slice(0,55),
+            comment: (comment || status).slice(0,90),
+            status:  (row[base+8]||'').toString().trim(),
+            followup:(row[base+7]||'').toString().trim(),
           });
         }
       }
@@ -849,74 +861,52 @@ function renderCatTable(catStats) {
 }
 
 // ── FLAGGED ITEMS (filtered) ───────────────────────────────────────────────────
-function issueRow(f) {
-  const st  = (f.status||'').toLowerCase();
-  const dot = st.includes('ok')?'var(--green)':st.includes('disc')||st.includes('miss')?'var(--red)':'var(--amber)';
-  const tc  = st.includes('ok')?'t-ok':st.includes('disc')||st.includes('miss')?'t-bd':'t-wn';
-  const tl  = st.includes('ok')?'OK':st.includes('disc')?'Discontinued':st.includes('miss')?'Missing':'Check';
-  return `<div class="irow">
-    <div class="idot" style="background:${dot};"></div>
-    <div class="icat">${f.cat}</div>
-    <div class="iloc">${f.loc}</div>
-    <div class="idesc">${f.name?'<strong>'+f.name+'</strong> — ':''}${f.comment}</div>
-    <span class="tag ${tc}">${tl}</span>
-  </div>`;
+let _lastFlagged = [];
+
+function downloadIssuesExcel() {
+  if (!_lastFlagged.length) return;
+  const roundLabel = document.getElementById('iss-round-label')?.textContent || 'Audit';
+  const headers = ['#','Category','Location','ERP Code','Material Name','Comment / Remark','Status','Follow-Up'];
+  const rows = _lastFlagged.map((f,i) => [
+    i+1,
+    f.cat||'', f.loc||'', f.erp||'', f.name||'',
+    (f.comment||'').replace(/,/g,';'),
+    (f.status||'').replace(/[✓⚠❌]/g,'').trim(),
+    (f.followup||'').replace(/,/g,';'),
+  ]);
+  const wsData = [headers, ...rows];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{wch:4},{wch:22},{wch:10},{wch:22},{wch:45},{wch:50},{wch:15},{wch:30}];
+  const wb2 = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb2, ws, 'Flagged Items');
+  const filename = `EC_Audit_Flagged_${roundLabel.replace(/[^a-z0-9]/gi,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb2, filename);
 }
 
-// Store flagged globally so the "show more" button can access it
-let _allFlagged = [];
-const ISSUES_PAGE = 40;
-
 function renderIssues(flagged) {
-  _allFlagged = flagged;
-  const div = document.getElementById('issues-display');
+  _lastFlagged = flagged;
+  const div    = document.getElementById('issues-display');
+  const countEl= document.getElementById('issues-count');
+  const dlBtn  = document.getElementById('download-issues-btn');
+  if (countEl) countEl.textContent = flagged.length ? `${flagged.length.toLocaleString()} items` : '';
+  if (dlBtn)   dlBtn.style.display = flagged.length ? 'flex' : 'none';
   if (!flagged.length) {
     div.innerHTML = '<div class="no-data">No comments or flags in this audit round yet.</div>';
     return;
   }
-  renderIssuesPage(div, flagged, ISSUES_PAGE);
-}
-
-function renderIssuesPage(div, flagged, showCount) {
-  const showing = flagged.slice(0, showCount);
-  const remaining = flagged.length - showCount;
-  div.innerHTML = showing.map(issueRow).join('');
-
-  if (remaining > 0) {
-    div.innerHTML += `
-      <div class="no-data" style="cursor:pointer;color:var(--navy2);font-weight:600;
-           border-top:1px solid var(--border);padding:14px;text-align:center;
-           transition:background 0.15s;" 
-           onmouseover="this.style.background='var(--blue-light)'"
-           onmouseout="this.style.background=''"
-           onclick="showAllIssues()">
-        ▼ &nbsp;Show ${remaining.toLocaleString()} more items
-      </div>`;
-  } else if (flagged.length > ISSUES_PAGE) {
-    // All shown — add collapse button
-    div.innerHTML += `
-      <div class="no-data" style="cursor:pointer;color:var(--ink3);font-weight:500;
-           border-top:1px solid var(--border);padding:14px;text-align:center;
-           transition:background 0.15s;"
-           onmouseover="this.style.background='var(--bg)'"
-           onmouseout="this.style.background=''"
-           onclick="collapseIssues()">
-        ▲ &nbsp;Show less
-      </div>`;
-  }
-}
-
-function showAllIssues() {
-  const div = document.getElementById('issues-display');
-  renderIssuesPage(div, _allFlagged, _allFlagged.length);
-  // Smooth scroll to keep position
-  div.scrollIntoView({behavior:'smooth', block:'nearest'});
-}
-
-function collapseIssues() {
-  const div = document.getElementById('issues-display');
-  renderIssuesPage(div, _allFlagged, ISSUES_PAGE);
-  div.scrollIntoView({behavior:'smooth', block:'start'});
+  div.innerHTML = flagged.map(f => {
+    const st  = (f.status||'').toLowerCase();
+    const dot = st.includes('ok')?'var(--green)':st.includes('disc')||st.includes('miss')?'var(--red)':'var(--amber)';
+    const tc  = st.includes('ok')?'t-ok':st.includes('disc')||st.includes('miss')?'t-bd':'t-wn';
+    const tl  = st.includes('ok')?'OK':st.includes('disc')?'Discontinued':st.includes('miss')?'Missing':'Check';
+    return `<div class="irow">
+      <div class="idot" style="background:${dot};"></div>
+      <div class="icat">${f.cat}</div>
+      <div class="iloc">${f.loc}</div>
+      <div class="idesc">${f.name?'<strong>'+f.name+'</strong> — ':''}${f.comment}</div>
+      <span class="tag ${tc}">${tl}</span>
+    </div>`;
+  }).join('');
 }
 
 loadAllData();
