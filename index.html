@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EC Material Audit — Live Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --navy:#0F2340; --navy2:#1A3A5C; --navy3:#234B73;
+  --bg:#F4F2EE; --surface:#FFFFFF; --border:#DDD9D0;
+  --ink:#1A1916; --ink2:#5C5A54; --ink3:#9B998F;
+  --green:#1A5C38; --green-bg:#E4F2EB;
+  --amber:#7A4800; --amber-bg:#FDF0DC;
+  --red:#7A1A1A;   --red-bg:#FAEBEB;
+  --blue-light:#E8F0F8;
+  --r:10px; --rl:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Sora',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;font-size:14px;}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+/* NAV */
+nav{background:var(--navy);color:#fff;padding:0 36px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:50;}
+.nav-brand{font-size:15px;font-weight:600;letter-spacing:-0.2px;}
+.nav-brand span{font-weight:300;opacity:0.55;margin-left:8px;font-size:12px;}
+.nav-right{display:flex;align-items:center;gap:12px;}
+.nav-pill{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:999px;padding:4px 14px;font-size:11px;font-weight:500;}
+#refresh-btn{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);border-radius:999px;padding:5px 14px;font-size:11px;color:#fff;cursor:pointer;font-family:inherit;transition:background 0.15s;}
+#refresh-btn:hover{background:rgba(255,255,255,0.25);}
+
+/* LOADING */
+#loading{position:fixed;inset:0;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;color:#fff;gap:16px;}
+#loading-bar-track{width:260px;height:3px;background:rgba(255,255,255,0.15);border-radius:999px;}
+#loading-bar{height:3px;border-radius:999px;background:#fff;width:0%;transition:width 0.4s ease;}
+#loading p{font-size:13px;opacity:0.6;margin-top:4px;}
+#loading h2{font-size:18px;font-weight:600;}
+
+/* ERROR */
+#error-box{display:none;margin:32px auto;max-width:600px;background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:28px;text-align:center;}
+#error-box h3{color:var(--red);margin-bottom:10px;}
+#error-box p{font-size:13px;color:var(--ink2);line-height:1.7;}
+#error-box code{display:block;background:var(--bg);border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:11px;margin:12px 0;text-align:left;white-space:pre-wrap;word-break:break-all;}
+
+/* MAIN */
+.main{max-width:1140px;margin:0 auto;padding:32px 24px;display:none;}
+.sh{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);margin-bottom:12px;}
+
+/* METRICS */
+.metric-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:28px;}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px;}
+.metric.hero{background:var(--navy);border-color:var(--navy);}
+.ml{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink3);margin-bottom:7px;}
+.metric.hero .ml{color:rgba(255,255,255,0.5);}
+.mv{font-size:28px;font-weight:700;letter-spacing:-1px;line-height:1;color:var(--ink);}
+.metric.hero .mv{color:#fff;}
+.ms{font-size:11px;color:var(--ink3);margin-top:4px;}
+.metric.hero .ms{color:rgba(255,255,255,0.5);}
+
+/* LOC CARDS */
+.loc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:28px;}
+.lc{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:18px;}
+.lc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+.lc-name{font-size:15px;font-weight:600;}
+.lc-city{font-size:11px;color:var(--ink3);margin-top:2px;}
+.lc-pct{font-size:26px;font-weight:700;letter-spacing:-1px;}
+.pt{background:var(--bg);border-radius:999px;height:4px;margin-bottom:10px;overflow:hidden;}
+.pf{height:4px;border-radius:999px;transition:width 0.8s ease;}
+.lc-skus{font-size:11px;color:var(--ink3);margin-bottom:12px;font-family:'JetBrains Mono',monospace;}
+.pill-row{display:flex;gap:6px;}
+.pill{flex:1;border-radius:8px;padding:8px 4px;text-align:center;}
+.pill .pn{font-size:15px;font-weight:700;}
+.pill .pl{font-size:10px;font-weight:500;margin-top:1px;}
+.p-ok{background:var(--green-bg);} .p-ok .pn,.p-ok .pl{color:var(--green);}
+.p-wn{background:var(--amber-bg);} .p-wn .pn,.p-wn .pl{color:var(--amber);}
+.p-bd{background:var(--red-bg);}   .p-bd .pn,.p-bd .pl{color:var(--red);}
+.p-nd{background:var(--bg);}       .p-nd .pn{color:var(--ink);} .p-nd .pl{color:var(--ink3);}
+
+/* CHARTS */
+.charts-row{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:28px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:20px;}
+.ct{font-size:13px;font-weight:600;margin-bottom:2px;}
+.cs{font-size:11px;color:var(--ink3);margin-bottom:14px;}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink2);}
+.lsq{width:9px;height:9px;border-radius:2px;}
+
+/* CAT TABLE */
+.tcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:28px;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:10px;font-weight:700;color:var(--ink3);letter-spacing:0.07em;text-transform:uppercase;padding:11px 16px;border-bottom:1px solid var(--border);background:#FAF9F6;text-align:left;white-space:nowrap;}
+td{font-size:12px;padding:11px 16px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--ink);}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:#FAFAF8;}
+.mbt{background:var(--bg);border-radius:999px;height:4px;width:72px;margin-top:3px;overflow:hidden;}
+.mbf{height:4px;border-radius:999px;background:var(--navy2);}
+.tag{display:inline-block;font-size:10px;font-weight:600;padding:3px 9px;border-radius:999px;}
+.t-ok{background:var(--green-bg);color:var(--green);}
+.t-wn{background:var(--amber-bg);color:var(--amber);}
+.t-bd{background:var(--red-bg);color:var(--red);}
+.t-nd{background:var(--bg);color:var(--ink3);}
+
+/* ISSUES */
+.icard{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:28px;}
+.irow{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--border);}
+.irow:last-child{border-bottom:none;}
+.idot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.icat{font-size:12px;font-weight:600;min-width:120px;}
+.iloc{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink3);min-width:60px;}
+.idesc{font-size:12px;color:var(--ink2);flex:1;}
+.no-iss{padding:28px;text-align:center;font-size:13px;color:var(--ink3);}
+
+footer{text-align:center;font-size:11px;color:var(--ink3);padding:20px;border-top:1px solid var(--border);}
+
+/* SETUP GUIDE */
+.setup-guide{max-width:720px;margin:32px auto;padding:0 24px;display:none;}
+.guide-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:28px;}
+.guide-card h2{font-size:18px;font-weight:700;margin-bottom:6px;}
+.guide-card p{font-size:13px;color:var(--ink2);line-height:1.7;margin-bottom:16px;}
+.step-item{display:flex;gap:14px;margin-bottom:18px;align-items:flex-start;}
+.step-num{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.step-content h4{font-size:13px;font-weight:600;margin-bottom:4px;}
+.step-content p{font-size:12px;color:var(--ink2);line-height:1.6;margin:0;}
+code{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--navy2);}
+.url-block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--navy2);word-break:break-all;margin:8px 0;}
+.guide-btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:8px;}
+
+@media(max-width:900px){.metric-row{grid-template-columns:repeat(3,1fr);}.loc-grid{grid-template-columns:repeat(2,1fr);}.charts-row{grid-template-columns:1fr;}}
+@media(max-width:560px){.metric-row{grid-template-columns:repeat(2,1fr);}.loc-grid{grid-template-columns:1fr;}nav{padding:0 14px;}.main{padding:20px 14px;}}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <h2>Loading audit data...</h2>
+  <div id="loading-bar-track"><div id="loading-bar"></div></div>
+  <p id="loading-msg">Connecting to GitHub...</p>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">Bonito Designs <span>Material Library Audit</span></div>
+  <div class="nav-right">
+    <span class="nav-pill" id="nav-round">Audit Round 1</span>
+    <button id="refresh-btn" onclick="loadAllData()">↻ Refresh</button>
+  </div>
+</nav>
+
+<!-- ERROR -->
+<div id="error-box">
+  <h3>Could not load Excel files</h3>
+  <p>The dashboard could not fetch one or more Excel files. This usually means the GitHub URLs in <code>config.js</code> need to be updated with your real file URLs.<br><br>
+  Make sure your GitHub repository is <strong>public</strong> and you're using the <strong>raw</strong> file URL format:</p>
+  <code>https://raw.githubusercontent.com/YOUR-USERNAME/YOUR-REPO/main/EC_Audit_Andheri.xlsx</code>
+  <p>See the setup guide below for full instructions.</p>
+  <button class="guide-btn" onclick="document.getElementById('setup-guide').style.display='block';this.style.display='none'">Show setup guide</button>
+</div>
+
+<!-- SETUP GUIDE (shown when URLs not configured) -->
+<div class="setup-guide" id="setup-guide">
+  <div class="guide-card">
+    <h2>Setup guide — 10 minutes</h2>
+    <p>Follow these steps once and your dashboard will auto-update whenever you upload new Excel files to GitHub.</p>
+
+    <div class="step-item">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Create a free GitHub account</h4>
+        <p>Go to <strong>github.com</strong> → Sign up → choose the free plan.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Create a new repository</h4>
+        <p>Click the <strong>+</strong> icon → New repository → name it <code>ec-audit</code> → set to <strong>Public</strong> → click Create.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Upload your 4 Excel files + this HTML file</h4>
+        <p>In your repo, click <strong>Add file → Upload files</strong> → drag all 5 files:<br>
+        <code>EC_Audit_Andheri.xlsx</code> &nbsp; <code>EC_Audit_Thane.xlsx</code> &nbsp; <code>EC_Audit_HSR.xlsx</code> &nbsp; <code>EC_Audit_HRBR.xlsx</code> &nbsp; <code>index.html</code><br>
+        Click <strong>Commit changes</strong>.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <h4>Enable GitHub Pages</h4>
+        <p>Go to repo <strong>Settings → Pages → Source → Deploy from branch → main → / (root)</strong> → Save.<br>
+        Your dashboard URL will be: <code>https://YOUR-USERNAME.github.io/ec-audit/</code></p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">5</div>
+      <div class="step-content">
+        <h4>Update the file URLs inside index.html</h4>
+        <p>Open <code>index.html</code> in any text editor. Find the <code>FILE_URLS</code> section near the top of the script and replace <code>YOUR-USERNAME</code> and <code>YOUR-REPO</code> with your actual GitHub username and repo name.</p>
+        <div class="url-block">const FILE_URLS = {
+  Andheri: 'https://raw.githubusercontent.com/YOUR-USERNAME/ec-audit/main/EC_Audit_Andheri.xlsx',
+  Thane:   'https://raw.githubusercontent.com/YOUR-USERNAME/ec-audit/main/EC_Audit_Thane.xlsx',
+  HSR:     'https://raw.githubusercontent.com/YOUR-USERNAME/ec-audit/main/EC_Audit_HSR.xlsx',
+  HRBR:    'https://raw.githubusercontent.com/YOUR-USERNAME/ec-audit/main/EC_Audit_HRBR.xlsx',
+};</div>
+        <p>Save the file and re-upload it to GitHub.</p>
+      </div>
+    </div>
+    <div class="step-item">
+      <div class="step-num">6</div>
+      <div class="step-content">
+        <h4>To update the dashboard in future</h4>
+        <p>Update the Excel file on your computer → go to GitHub → click the file → click the pencil/upload icon → upload the new version → Commit. The dashboard URL stays the same and shows new data immediately.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="main" id="main-content">
+
+  <div class="metric-row">
+    <div class="metric hero">
+      <div class="ml">Total SKUs</div>
+      <div class="mv" id="m-total">—</div>
+      <div class="ms" id="m-cats">— categories</div>
+    </div>
+    <div class="metric">
+      <div class="ml">Avg completion</div>
+      <div class="mv" id="m-pct">—</div>
+      <div class="ms">across all locations</div>
+    </div>
+    <div class="metric">
+      <div class="ml">Audited SKUs</div>
+      <div class="mv" id="m-audited">—</div>
+      <div class="ms">rows with data filled</div>
+    </div>
+    <div class="metric">
+      <div class="ml">Conforming</div>
+      <div class="mv" id="m-ok" style="color:var(--green)">—</div>
+      <div class="ms">passed audit checks</div>
+    </div>
+    <div class="metric">
+      <div class="ml">Issues flagged</div>
+      <div class="mv" id="m-iss" style="color:var(--red)">—</div>
+      <div class="ms">need follow-up</div>
+    </div>
+  </div>
+
+  <p class="sh">Location progress</p>
+  <div class="loc-grid" id="loc-cards"></div>
+
+  <div class="charts-row">
+    <div class="card">
+      <div class="ct">Category completion</div>
+      <div class="cs">All locations combined — % of SKUs audited</div>
+      <div class="legend">
+        <div class="leg"><div class="lsq" style="background:#1A5C38;"></div>Audited</div>
+        <div class="leg"><div class="lsq" style="background:#DDD9D0;"></div>Pending</div>
+      </div>
+      <div style="position:relative;height:340px;">
+        <canvas id="catChart" role="img" aria-label="Horizontal bar chart of category audit completion">Category completion percentages.</canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">Overall status breakdown</div>
+      <div class="cs">All audited SKUs</div>
+      <div style="position:relative;height:220px;margin-bottom:14px;">
+        <canvas id="donutChart" role="img" aria-label="Donut chart of audit status">Status breakdown.</canvas>
+      </div>
+      <div id="donut-legend" style="display:flex;flex-direction:column;gap:7px;"></div>
+    </div>
+  </div>
+
+  <p class="sh">Category breakdown — all locations</p>
+  <div class="tcard">
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>SKUs</th>
+          <th>Completion</th>
+          <th style="text-align:right;">OK</th>
+          <th style="text-align:right;">Issues</th>
+          <th style="text-align:right;">Discontinued</th>
+          <th style="text-align:right;">Missing</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="cat-tbody"></tbody>
+    </table>
+  </div>
+
+  <p class="sh">Flagged items — comments from audit sheets</p>
+  <div class="icard" id="issues-display"></div>
+
+  <footer>
+    Last refreshed: <span id="last-updated" class="mono">—</span> &nbsp;·&nbsp;
+    Data source: GitHub (4 Excel files) &nbsp;·&nbsp;
+    Bonito Designs Material Library Audit
+  </footer>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  ▶▶  UPDATE THESE URLs WITH YOUR GITHUB RAW FILE LINKS  ◀◀
+// ══════════════════════════════════════════════════════════════════
+const FILE_URLS = {
+  Andheri: 'https://raw.githubusercontent.com/YOUR-USERNAME/ec-audit/main/EC_Audit_Andheri.xlsx',
+  Thane:   'https://raw.githubusercontent.com/YOUR-USERNAME/ec-audit/main/EC_Audit_Thane.xlsx',
+  HSR:     'https://raw.githubusercontent.com/YOUR-USERNAME/ec-audit/main/EC_Audit_HSR.xlsx',
+  HRBR:    'https://raw.githubusercontent.com/YOUR-USERNAME/ec-audit/main/EC_Audit_HRBR.xlsx',
+};
+// ══════════════════════════════════════════════════════════════════
+
+const LOC_COLORS  = { Andheri:'#185FA5', Thane:'#0F6E56', HSR:'#3B6D11', HRBR:'#854F0B' };
+const LOC_CITIES  = { Andheri:'Mumbai',  Thane:'Mumbai',  HSR:'Bangalore', HRBR:'Bangalore' };
+const TOTAL_SKUS  = 3224;
+
+// Category name → canonical name mapping (sheet titles vary slightly)
+const CAT_NAMES = [
+  'Laminates','Acrylic n Crystal Acrylic','PU and Membrane','Rafters',
+  'Wallpaper','Quartz','Granite','Wooden Flooring','Beading','Bonito Legs','Handles','Fabric'
+];
+
+let catChart = null, donutChart = null;
+
+function setBar(pct){ document.getElementById('loading-bar').style.width = pct+'%'; }
+function setMsg(m)  { document.getElementById('loading-msg').textContent = m; }
+
+async function fetchExcel(url, name) {
+  const resp = await fetch(url + '?t=' + Date.now()); // bust cache
+  if (!resp.ok) throw new Error(`Could not fetch ${name}: ${resp.status}`);
+  const buf  = await resp.arrayBuffer();
+  return XLSX.read(buf, { type:'array', cellDates:true });
+}
+
+// Read a category sheet and extract audit data from Audit 1 columns
+// Fixed cols: A=#, B=ERP, C=Name, D=Brand
+// Audit 1 starts at col E (index 4):
+//   E=Date, F=Auditor, G=Sample, H=Disc, I=Visual, J=Conform, K=Comments, L=FollowUp, M=Status
+function readCategorySheet(ws) {
+  const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+  // Find data start: row with '#' in col 0 or row 4 (index 3)
+  let dataStart = 4; // default: row index 4 = Excel row 5
+  for (let i = 0; i < Math.min(rows.length, 6); i++) {
+    if (rows[i][0] === '#' || rows[i][0] === 1) { dataStart = i + 1; break; }
+  }
+
+  let total=0, audited=0, ok=0, issues=0, disc=0, missing=0;
+  const flagged = [];
+
+  for (let i = dataStart; i < rows.length; i++) {
+    const row = rows[i];
+    const erpOrName = (row[1]||'').toString().trim() + (row[2]||'').toString().trim();
+    if (!erpOrName) continue;
+    total++;
+
+    // Audit 1 columns (indices 4–12)
+    const dateVal  = (row[4]||'').toString().trim();
+    const sample   = (row[6]||'').toString().trim();
+    const discVal  = (row[7]||'').toString().trim();
+    const visual   = (row[8]||'').toString().trim();
+    const conform  = (row[9]||'').toString().trim();
+    const comment  = (row[10]||'').toString().trim();
+    const followup = (row[11]||'').toString().trim();
+    const status   = (row[12]||'').toString().trim();
+
+    if (!dateVal && !sample && !conform) continue; // not audited
+    audited++;
+
+    const st = status.toLowerCase();
+    if (st.includes('ok') || conform.toLowerCase()==='yes')   ok++;
+    if (st.includes('disc') || discVal.toLowerCase()==='yes') disc++;
+    if (st.includes('missing') || sample.toLowerCase()==='no') missing++;
+    if (st.includes('check') || st.includes('missing') || st.includes('disc')) issues++;
+
+    // Collect flagged items (those with comments or bad status)
+    if (comment && comment.toLowerCase() !== 'meets specs' &&
+        comment.toLowerCase() !== 'good finish' && comment.length > 3) {
+      flagged.push({
+        name:    (row[2]||'').toString().trim().slice(0,60),
+        comment: comment.slice(0,80),
+        status:  status,
+        followup: followup,
+      });
+    }
+  }
+  return { total, audited, ok, issues, disc, missing, flagged };
+}
+
+async function loadAllData() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('main-content').style.display = 'none';
+  document.getElementById('error-box').style.display = 'none';
+  setBar(5); setMsg('Connecting to GitHub...');
+
+  // Check if URLs are still placeholder
+  if (FILE_URLS.Andheri.includes('YOUR-USERNAME')) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-box').style.display = 'block';
+    document.getElementById('setup-guide').style.display = 'block';
+    return;
+  }
+
+  try {
+    const locNames = Object.keys(FILE_URLS);
+    const workbooks = {};
+    for (let i = 0; i < locNames.length; i++) {
+      const loc = locNames[i];
+      setMsg(`Reading ${loc} audit file...`);
+      setBar(10 + i * 20);
+      workbooks[loc] = await fetchExcel(FILE_URLS[loc], loc);
+    }
+    setBar(90); setMsg('Building dashboard...');
+
+    // ── Aggregate data ────────────────────────────────────────────
+    const locStats = {};   // loc → { pct, ok, issues, disc, missing, audited, total }
+    const catStats = {};   // catName → { total, audited, ok, issues, disc, missing }
+    const allFlagged = []; // { loc, cat, name, comment, status }
+
+    for (const loc of locNames) {
+      const wb = workbooks[loc];
+      let locTotal=0, locAudited=0, locOk=0, locIss=0, locDisc=0, locMiss=0;
+
+      for (const sheetName of wb.SheetNames) {
+        if (sheetName === '📋 DASHBOARD') continue;
+        const ws   = wb.Sheets[sheetName];
+        const stat = readCategorySheet(ws);
+
+        locTotal   += stat.total;
+        locAudited += stat.audited;
+        locOk      += stat.ok;
+        locIss     += stat.issues;
+        locDisc    += stat.disc;
+        locMiss    += stat.missing;
+
+        // Category aggregation
+        const cn = sheetName;
+        if (!catStats[cn]) catStats[cn] = {total:0,audited:0,ok:0,issues:0,disc:0,missing:0};
+        catStats[cn].total   += stat.total;
+        catStats[cn].audited += stat.audited;
+        catStats[cn].ok      += stat.ok;
+        catStats[cn].issues  += stat.issues;
+        catStats[cn].disc    += stat.disc;
+        catStats[cn].missing += stat.missing;
+
+        stat.flagged.slice(0,3).forEach(f => allFlagged.push({ loc, cat:sheetName, ...f }));
+      }
+
+      locStats[loc] = {
+        total: locTotal, audited: locAudited,
+        ok: locOk, issues: locIss, disc: locDisc, missing: locMiss,
+        pct: locTotal > 0 ? Math.round(locAudited / locTotal * 100) : 0,
+      };
+    }
+
+    // ── Render dashboard ──────────────────────────────────────────
+    renderMetrics(locStats, catStats);
+    renderLocCards(locStats);
+    renderCharts(catStats, locStats);
+    renderCatTable(catStats);
+    renderIssues(allFlagged);
+
+    document.getElementById('last-updated').textContent =
+      new Date().toLocaleString('en-IN', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+    setBar(100);
+    setTimeout(() => {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('main-content').style.display = 'block';
+    }, 300);
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-box').style.display = 'block';
+    document.getElementById('error-box').querySelector('p').textContent =
+      'Error: ' + err.message + '. Check that your GitHub repo is public and the URLs are correct.';
+  }
+}
+
+function renderMetrics(locStats, catStats) {
+  const locs      = Object.values(locStats);
+  const totalSKUs = locs.reduce((s,l)=>s+l.total,0);
+  const totalAud  = locs.reduce((s,l)=>s+l.audited,0);
+  const totalOk   = locs.reduce((s,l)=>s+l.ok,0);
+  const totalIss  = locs.reduce((s,l)=>s+l.issues,0);
+  const avgPct    = locs.length ? Math.round(locs.reduce((s,l)=>s+l.pct,0)/locs.length) : 0;
+
+  document.getElementById('m-total').textContent   = totalSKUs.toLocaleString();
+  document.getElementById('m-cats').textContent    = Object.keys(catStats).length + ' categories';
+  document.getElementById('m-pct').textContent     = avgPct + '%';
+  document.getElementById('m-audited').textContent = totalAud.toLocaleString();
+  document.getElementById('m-ok').textContent      = totalOk.toLocaleString();
+  document.getElementById('m-iss').textContent     = totalIss.toLocaleString();
+}
+
+function renderLocCards(locStats) {
+  const container = document.getElementById('loc-cards');
+  container.innerHTML = '';
+  for (const [loc, s] of Object.entries(locStats)) {
+    const col = LOC_COLORS[loc] || '#1A3A5C';
+    container.innerHTML += `
+    <div class="lc">
+      <div class="lc-top">
+        <div><div class="lc-name">${loc}</div><div class="lc-city">${LOC_CITIES[loc]||''}</div></div>
+        <div class="lc-pct" style="color:${col}">${s.pct}%</div>
+      </div>
+      <div class="pt"><div class="pf" style="width:${s.pct}%;background:${col};"></div></div>
+      <div class="lc-skus">${s.audited.toLocaleString()} / ${s.total.toLocaleString()} SKUs audited</div>
+      <div class="pill-row">
+        <div class="pill p-ok"><div class="pn">${s.ok}</div><div class="pl">OK</div></div>
+        <div class="pill p-wn"><div class="pn">${s.issues - s.disc - s.missing}</div><div class="pl">Check</div></div>
+        <div class="pill p-bd"><div class="pn">${s.disc + s.missing}</div><div class="pl">Action</div></div>
+        <div class="pill p-nd"><div class="pn">${s.total - s.audited}</div><div class="pl">Pending</div></div>
+      </div>
+    </div>`;
+  }
+}
+
+function renderCharts(catStats, locStats) {
+  const cats    = Object.entries(catStats);
+  const labels  = cats.map(([n])=>n.length>18?n.slice(0,18)+'…':n);
+  const pcts    = cats.map(([,s])=> s.total>0 ? Math.round(s.audited/s.total*100) : 0);
+  const pending = pcts.map(p=>100-p);
+
+  if (catChart) catChart.destroy();
+  catChart = new Chart(document.getElementById('catChart'), {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'Audited', data:pcts,    backgroundColor:'#1A5C38', borderRadius:3, barPercentage:0.65 },
+      { label:'Pending', data:pending, backgroundColor:'#DDD9D0', borderRadius:3, barPercentage:0.65 },
+    ]},
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>` ${ctx.dataset.label}: ${Math.round(ctx.raw)}%` }}},
+      scales:{
+        x:{ stacked:true, max:100, ticks:{ callback:v=>v+'%', font:{size:10} }, grid:{ color:'rgba(0,0,0,0.05)' } },
+        y:{ stacked:true, ticks:{ font:{size:10} }, grid:{ display:false } }
+      }
+    }
+  });
+
+  // Donut
+  const locs  = Object.values(locStats);
+  const dOk   = locs.reduce((s,l)=>s+l.ok,0);
+  const dIss  = locs.reduce((s,l)=>s+Math.max(0,l.issues-l.disc-l.missing),0);
+  const dDisc = locs.reduce((s,l)=>s+l.disc,0);
+  const dMiss = locs.reduce((s,l)=>s+l.missing,0);
+  const dPend = locs.reduce((s,l)=>s+(l.total-l.audited),0);
+  const dData = [dOk, dIss, dDisc+dMiss, dPend];
+  const dLabels = ['Conforming','Needs check','Action needed','Not audited'];
+  const dColors = ['#1A5C38','#7A4800','#7A1A1A','#DDD9D0'];
+
+  if (donutChart) donutChart.destroy();
+  donutChart = new Chart(document.getElementById('donutChart'), {
+    type:'doughnut',
+    data:{ labels:dLabels, datasets:[{ data:dData, backgroundColor:dColors, borderWidth:2, borderColor:'#FFFFFF' }]},
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'68%',
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx=>` ${ctx.label}: ${ctx.raw.toLocaleString()}` }}}
+    }
+  });
+
+  const dLeg = document.getElementById('donut-legend');
+  dLeg.innerHTML = dLabels.map((l,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;">
+      <span style="display:flex;align-items:center;gap:6px;">
+        <span style="width:9px;height:9px;border-radius:2px;background:${dColors[i]};display:inline-block;"></span>
+        <span style="color:var(--ink2);">${l}</span>
+      </span>
+      <span style="font-family:'JetBrains Mono',monospace;font-weight:500;color:var(--ink);">${dData[i].toLocaleString()}</span>
+    </div>`).join('');
+}
+
+function renderCatTable(catStats) {
+  const tbody = document.getElementById('cat-tbody');
+  tbody.innerHTML = '';
+  const sorted = Object.entries(catStats).sort((a,b)=>b[1].total - a[1].total);
+  sorted.forEach(([cat, s]) => {
+    const pct = s.total > 0 ? Math.round(s.audited/s.total*100) : 0;
+    let tag, cls;
+    if (pct===100)    { tag='Complete';    cls='t-ok'; }
+    else if (pct>=60) { tag='In progress'; cls='t-wn'; }
+    else if (pct>0)   { tag='Started';     cls='t-wn'; }
+    else              { tag='Not started'; cls='t-nd'; }
+    tbody.innerHTML += `<tr>
+      <td><strong>${cat}</strong></td>
+      <td class="mono">${s.total.toLocaleString()}</td>
+      <td>
+        <div style="font-size:11px;color:var(--ink2);margin-bottom:3px;">${pct}%</div>
+        <div class="mbt"><div class="mbf" style="width:${pct}%;"></div></div>
+      </td>
+      <td style="text-align:right;color:var(--green);font-weight:600;" class="mono">${s.ok}</td>
+      <td style="text-align:right;color:${s.issues>0?'var(--amber)':'var(--ink3)'};font-weight:600;" class="mono">${s.issues}</td>
+      <td style="text-align:right;color:${s.disc>0?'var(--red)':'var(--ink3)'};font-weight:600;" class="mono">${s.disc}</td>
+      <td style="text-align:right;color:${s.missing>0?'var(--red)':'var(--ink3)'};font-weight:600;" class="mono">${s.missing}</td>
+      <td><span class="tag ${cls}">${tag}</span></td>
+    </tr>`;
+  });
+}
+
+function renderIssues(flagged) {
+  const div = document.getElementById('issues-display');
+  if (!flagged.length) {
+    div.innerHTML = '<div class="no-iss">No comments or flags found in audit sheets yet — fill in the Excel files to see items here.</div>';
+    return;
+  }
+  const shown = flagged.slice(0, 30);
+  div.innerHTML = shown.map(f => {
+    const st = (f.status||'').toLowerCase();
+    const dotColor = st.includes('ok') ? 'var(--green)' : st.includes('disc') ? 'var(--red)' : 'var(--amber)';
+    const tagCls   = st.includes('ok') ? 't-ok' : st.includes('disc') || st.includes('miss') ? 't-bd' : 't-wn';
+    const tagLabel = st.includes('ok') ? 'OK' : st.includes('disc') ? 'Discontinued' : st.includes('miss') ? 'Missing' : 'Check';
+    return `<div class="irow">
+      <div class="idot" style="background:${dotColor};"></div>
+      <div class="icat">${f.cat}</div>
+      <div class="iloc">${f.loc}</div>
+      <div class="idesc">${f.name ? '<strong>'+f.name+'</strong> — ' : ''}${f.comment}</div>
+      <span class="tag ${tagCls}">${tagLabel}</span>
+    </div>`;
+  }).join('');
+  if (flagged.length > 30) {
+    div.innerHTML += `<div class="no-iss" style="border-top:1px solid var(--border);">+ ${flagged.length-30} more items — update the Excel and scroll the audit sheets for full list.</div>`;
+  }
+}
+
+// Auto-load on page open
+loadAllData();
+</script>
+</body>
+</html>
