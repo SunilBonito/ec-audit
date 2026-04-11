@@ -15,6 +15,7 @@
   --green:#1A5C38;--green-bg:#E4F2EB;
   --amber:#7A4800;--amber-bg:#FDF0DC;
   --red:#7A1A1A;--red-bg:#FAEBEB;
+  --purple:#4A1E8C;--purple-bg:#EDE8FB;
   --blue-light:#E8F0F8;
   --r:10px;--rl:14px;
 }
@@ -88,10 +89,11 @@ nav{background:var(--navy);color:#fff;padding:0 28px;display:flex;align-items:ce
 .pill{flex:1;border-radius:7px;padding:7px 3px;text-align:center;}
 .pill .pn{font-size:14px;font-weight:700;}
 .pill .pl{font-size:9px;font-weight:600;margin-top:1px;letter-spacing:0.02em;}
-.p-ok{background:var(--green-bg);} .p-ok .pn,.p-ok .pl{color:var(--green);}
-.p-wn{background:var(--amber-bg);} .p-wn .pn,.p-wn .pl{color:var(--amber);}
-.p-bd{background:var(--red-bg);}   .p-bd .pn,.p-bd .pl{color:var(--red);}
-.p-nd{background:var(--bg);}       .p-nd .pn{color:var(--ink);} .p-nd .pl{color:var(--ink3);}
+.p-ok{background:var(--green-bg);}  .p-ok .pn,.p-ok .pl{color:var(--green);}
+.p-wn{background:var(--amber-bg);}  .p-wn .pn,.p-wn .pl{color:var(--amber);}
+.p-bd{background:var(--red-bg);}    .p-bd .pn,.p-bd .pl{color:var(--red);}
+.p-rbs{background:var(--purple-bg);}.p-rbs .pn,.p-rbs .pl{color:var(--purple);}
+.p-nd{background:var(--bg);}        .p-nd .pn{color:var(--ink);} .p-nd .pl{color:var(--ink3);}
 .not-audited{display:flex;align-items:center;justify-content:center;height:60px;font-size:12px;color:var(--ink3);font-style:italic;}
 
 /* CHARTS */
@@ -526,12 +528,12 @@ function aggregateRound(roundIdx) {
   const locsToShow = currentFilter === 'All' ? Object.keys(allData) : [currentFilter];
   for (const loc of locsToShow) {
     const locData = allData[loc];
-    let lTotal=0, lAud=0, lOk=0, lCheck=0, lDisc=0, lMiss=0;
+    let lTotal=0, lAud=0, lOk=0, lCheck=0, lDisc=0, lMiss=0, lRBS=0;
     const date    = locData.roundDates[roundIdx] || '';
     const auditor = locData.roundAuditors[roundIdx] || '';
 
     for (const [catName, dataRows] of Object.entries(locData.sheets)) {
-      let cTotal=0, cAud=0, cOk=0, cCheck=0, cDisc=0, cMiss=0;
+      let cTotal=0, cAud=0, cOk=0, cCheck=0, cDisc=0, cMiss=0, cRBS=0;
 
       for (const row of dataRows) {
         const erp = (row[1]||'').toString().trim();
@@ -543,6 +545,7 @@ function aggregateRound(roundIdx) {
         const sample  = (row[base+2]||'').toString().trim().toLowerCase();
         const disc    = (row[base+3]||'').toString().trim().toLowerCase();
         const conform = (row[base+5]||'').toString().trim().toLowerCase();
+        const isRBS   = sample === 'represented by sample';
         const comment = (row[base+6]||'').toString().trim();
         const status  = (row[base+8]||'').toString().trim().toLowerCase();
         const matName = (row[2]||'').toString().trim();
@@ -553,6 +556,7 @@ function aggregateRound(roundIdx) {
         if (conform === 'yes' || status.includes('ok'))      cOk++;
         if (disc === 'yes'    || status.includes('disc'))     cDisc++;
         if (sample === 'no'   || status.includes('missing'))  cMiss++;
+        if (isRBS) cRBS++;
         if (status.includes('check') || status.includes('missing') || status.includes('disc')) cCheck++;
 
         // Collect flagged items
@@ -570,16 +574,17 @@ function aggregateRound(roundIdx) {
       }
 
       lTotal+=cTotal; lAud+=cAud; lOk+=cOk;
-      lCheck+=cCheck; lDisc+=cDisc; lMiss+=cMiss;
+      lCheck+=cCheck; lDisc+=cDisc; lMiss+=cMiss; lRBS+=cRBS;
 
-      if (!catStats[catName]) catStats[catName]={total:0,aud:0,ok:0,check:0,disc:0,miss:0};
+      if (!catStats[catName]) catStats[catName]={total:0,aud:0,ok:0,check:0,disc:0,miss:0,rbs:0};
       catStats[catName].total+=cTotal; catStats[catName].aud+=cAud;
-      catStats[catName].ok+=cOk;     catStats[catName].check+=cCheck;
+      catStats[catName].ok+=cOk;      catStats[catName].check+=cCheck;
       catStats[catName].disc+=cDisc;  catStats[catName].miss+=cMiss;
+      catStats[catName].rbs+=cRBS;
     }
 
     locStats[loc] = {
-      total:lTotal, aud:lAud, ok:lOk, check:lCheck, disc:lDisc, miss:lMiss,
+      total:lTotal, aud:lAud, ok:lOk, check:lCheck, disc:lDisc, miss:lMiss, rbs:lRBS,
       pct: lTotal>0 ? Math.round(lAud/lTotal*100) : 0,
       date, auditor,
     };
@@ -698,6 +703,7 @@ function renderRound(roundIdx) {
             <div class="pill p-ok"><div class="pn">${s.ok}</div><div class="pl">OK</div></div>
             <div class="pill p-wn"><div class="pn">${Math.max(0,s.check-s.disc-s.miss)}</div><div class="pl">Check</div></div>
             <div class="pill p-bd"><div class="pn">${s.disc+s.miss}</div><div class="pl">Action</div></div>
+            <div class="pill p-rbs"><div class="pn">${s.rbs||0}</div><div class="pl">RBS</div></div>
             <div class="pill p-nd"><div class="pn">${s.total-s.aud}</div><div class="pl">Pending</div></div>
           </div>
         </div>`;
@@ -745,10 +751,11 @@ function renderDonut(locStats) {
   const ok   = Object.values(locStats).reduce((s,l)=>s+l.ok,0);
   const chk  = Object.values(locStats).reduce((s,l)=>s+Math.max(0,l.check-l.disc-l.miss),0);
   const act  = Object.values(locStats).reduce((s,l)=>s+l.disc+l.miss,0);
+  const rbs  = Object.values(locStats).reduce((s,l)=>s+(l.rbs||0),0);
   const pend = Object.values(locStats).reduce((s,l)=>s+(l.total-l.aud),0);
-  const dData   = [ok,chk,act,pend];
-  const dLabels = ['Conforming','Needs check','Action needed','Not audited'];
-  const dColors = ['#1A5C38','#7A4800','#7A1A1A','#DDD9D0'];
+  const dData   = [ok,chk,act,rbs,pend];
+  const dLabels = ['Conforming','Needs check','Action needed','Represented by Sample','Not audited'];
+  const dColors = ['#1A5C38','#7A4800','#7A1A1A','#4A1E8C','#DDD9D0'];
   if (donutChart) donutChart.destroy();
   donutChart = new Chart(document.getElementById('donutChart'),{
     type:'doughnut',
@@ -824,6 +831,7 @@ function renderCatTable(catStats) {
       <td style="text-align:right;color:${s.check>0?'var(--amber)':'var(--ink3)'};font-weight:600;" class="mono">${s.check}</td>
       <td style="text-align:right;color:${s.disc>0?'var(--red)':'var(--ink3)'};font-weight:600;" class="mono">${s.disc}</td>
       <td style="text-align:right;color:${s.miss>0?'var(--red)':'var(--ink3)'};font-weight:600;" class="mono">${s.miss}</td>
+      <td style="text-align:right;color:${s.rbs>0?'var(--purple)':'var(--ink3)'};font-weight:600;" class="mono">${s.rbs||0}</td>
       <td><span class="tag ${cls}">${tag}</span></td>
     </tr>`;
   });
