@@ -139,17 +139,70 @@ footer{text-align:center;font-size:11px;color:var(--ink3);padding:18px;border-to
 #error-box p{font-size:13px;color:var(--ink2);line-height:1.7;}
 code{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--navy2);}
 
-@media(max-width:900px){.metric-row{grid-template-columns:repeat(3,1fr);}.loc-grid{grid-template-columns:repeat(2,1fr);}.charts-row{grid-template-columns:1fr;}}
-@media(max-width:700px){
-  nav{padding:0 16px;}
-  .nav-round-tabs{gap:3px;}
-  .round-tab{padding:4px 9px;font-size:10px;}
-  .filter-bar{padding:0 16px;gap:8px;overflow-x:auto;}
-  .loc-btn{padding:3px 10px;font-size:11px;white-space:nowrap;}
-  .metric-row{grid-template-columns:repeat(2,1fr);}
-  .loc-grid{grid-template-columns:1fr;}
-  .main{padding:16px 14px;}
+@media(max-width:900px){
   .charts-row{grid-template-columns:1fr;}
+  .loc-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+/* ── MOBILE ────────────────────────────────────────────── */
+@media(max-width:680px){
+
+  /* Nav: brand + tabs stacked, compact */
+  nav{height:auto;padding:10px 14px;flex-wrap:wrap;gap:8px;position:relative;}
+  .nav-brand{font-size:13px;flex:1;}
+  .nav-brand span{display:none;}
+  .nav-round-tabs{order:3;width:100%;justify-content:flex-start;gap:4px;overflow-x:auto;padding-bottom:2px;}
+  .round-tab{padding:4px 11px;font-size:11px;flex-shrink:0;}
+  .nav-actions{flex-shrink:0;}
+  .refresh-btn{padding:4px 10px;font-size:11px;}
+
+  /* Filter bar: scrollable */
+  .filter-bar{top:0;position:relative;padding:8px 14px;height:auto;gap:6px;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;}
+  .filter-label{display:none;}
+  .filter-divider{display:none;}
+  .loc-btn{padding:5px 14px;font-size:12px;flex-shrink:0;}
+
+  /* Main padding */
+  .main{padding:14px 12px;}
+
+  /* Round banner */
+  .round-banner{padding:14px 16px;flex-direction:column;align-items:flex-start;gap:10px;}
+  .rb-pills{gap:6px;}
+  .rb-pill{font-size:10px;padding:3px 9px;}
+
+  /* Top 3 metric cards: 1 column on mobile */
+  #top-metrics{grid-template-columns:1fr!important;}
+  .metric.hero .mv{font-size:32px;}
+
+  /* Location SKU row: vertical stack, one card per row */
+  #loc-sku-row{grid-template-columns:1fr!important;gap:8px!important;}
+  #loc-sku-row .metric{display:flex;align-items:center;gap:12px;padding:12px 16px;}
+  #loc-sku-row .metric .ml{margin-bottom:0;min-width:80px;font-size:10px;}
+  #loc-sku-row .metric .mv{font-size:20px;flex:1;}
+  #loc-sku-row .metric .ms{font-size:11px;text-align:right;}
+
+  /* Location progress cards: full width one by one */
+  .loc-grid{grid-template-columns:1fr!important;}
+  .lc{padding:14px;}
+  .lc-name{font-size:14px;}
+  .pill .pn{font-size:13px;}
+
+  /* Charts */
+  .charts-row{grid-template-columns:1fr;}
+
+  /* Category table: hide less important cols */
+  th:nth-child(5),td:nth-child(5),
+  th:nth-child(6),td:nth-child(6),
+  th:nth-child(7),td:nth-child(7){display:none;}
+
+  /* Issues: simpler layout */
+  .irow{flex-wrap:wrap;gap:6px;padding:10px 14px;}
+  .icat{min-width:unset;font-size:11px;}
+  .iloc{min-width:unset;font-size:10px;}
+  .idesc{width:100%;flex:none;}
+
+  /* Trend card */
+  .trend-card{padding:14px;}
 }
 </style>
 </head>
@@ -187,7 +240,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   <div class="round-banner" id="round-banner"></div>
 
   <!-- Metrics row 1: summary -->
-  <div class="metric-row" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px;">
+  <div id="top-metrics" class="metric-row" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px;">
     <div class="metric hero">
       <div class="ml">Avg completion</div>
       <div class="mv" id="m-pct">—</div>
@@ -595,12 +648,12 @@ function renderRound(roundIdx) {
   const ok  = Object.values(locStats).reduce((s,l)=>s+l.ok,0);
   const iss = Object.values(locStats).reduce((s,l)=>s+l.check,0);
   locSkuRow.innerHTML += `
-    <div class="metric">
+    <div class="metric stat-conforming">
       <div class="ml">Conforming</div>
       <div class="mv" style="color:var(--green)">${ok.toLocaleString()}</div>
       <div class="ms">passed checks</div>
     </div>
-    <div class="metric">
+    <div class="metric stat-issues">
       <div class="ml">Issues</div>
       <div class="mv" style="color:var(--red)">${iss.toLocaleString()}</div>
       <div class="ms">need action</div>
