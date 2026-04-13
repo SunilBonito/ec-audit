@@ -317,6 +317,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
           <th style="text-align:right;">Check</th>
           <th style="text-align:right;">Disc</th>
           <th style="text-align:right;">Missing</th>
+          <th style="text-align:right;color:var(--purple);">Rep. by Sample</th>
           <th>Status</th>
         </tr>
       </thead>
@@ -850,11 +851,11 @@ function renderCatTable(catStats) {
       <td><strong>${cat}</strong></td>
       <td class="mono">${s.total.toLocaleString()}</td>
       <td><div style="font-size:11px;color:var(--ink2);margin-bottom:2px;">${pct}%</div><div class="mbt"><div class="mbf" style="width:${pct}%;"></div></div></td>
-      <td style="text-align:right;color:var(--green);font-weight:600;" class="mono">${s.ok}</td>
-      <td style="text-align:right;color:${s.check>0?'var(--amber)':'var(--ink3)'};font-weight:600;" class="mono">${s.check}</td>
-      <td style="text-align:right;color:${s.disc>0?'var(--red)':'var(--ink3)'};font-weight:600;" class="mono">${s.disc}</td>
-      <td style="text-align:right;color:${s.miss>0?'var(--red)':'var(--ink3)'};font-weight:600;" class="mono">${s.miss}</td>
-      <td style="text-align:right;color:${s.rbs>0?'var(--purple)':'var(--ink3)'};font-weight:600;" class="mono">${s.rbs||0}</td>
+      <td style="text-align:right;color:${s.ok>0?'var(--green)':'var(--ink3)'};font-weight:600;" class="mono">${s.ok||'—'}</td>
+      <td style="text-align:right;color:${s.check>0?'var(--amber)':'var(--ink3)'};font-weight:600;" class="mono">${s.check||'—'}</td>
+      <td style="text-align:right;color:${s.disc>0?'var(--red)':'var(--ink3)'};font-weight:600;" class="mono">${s.disc||'—'}</td>
+      <td style="text-align:right;color:${s.miss>0?'var(--red)':'var(--ink3)'};font-weight:600;" class="mono">${s.miss||'—'}</td>
+      <td style="text-align:right;color:${s.rbs>0?'var(--purple)':'var(--ink3)'};font-weight:600;" class="mono">${s.rbs||'—'}</td>
       <td><span class="tag ${cls}">${tag}</span></td>
     </tr>`;
   });
