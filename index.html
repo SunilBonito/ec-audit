@@ -197,10 +197,10 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   /* Charts */
   .charts-row{grid-template-columns:1fr;}
 
-  /* Category table: hide less important cols */
-  th:nth-child(5),td:nth-child(5),
-  th:nth-child(6),td:nth-child(6),
-  th:nth-child(7),td:nth-child(7){display:none;}
+  /* Category table: horizontal scroll so ALL columns visible on mobile */
+  .tcard{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .tcard table{min-width:620px;}
+  .tcard th, .tcard td{padding:9px 10px;font-size:11px;}
 
   /* Issues: simpler layout */
   .irow{flex-wrap:wrap;gap:6px;padding:10px 14px;}
@@ -443,9 +443,14 @@ function parseWorkbook(wb, loc) {
         const dateVal = row[FIXED + r*BLOCK + 0];
         const audVal  = (row[FIXED + r*BLOCK + 1]||'').toString().trim();
         if (dateVal && !roundDates[r]) {
-          roundDates[r] = dateVal instanceof Date
-            ? dateVal.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})
-            : dateVal.toString().trim();
+          // cellDates:true → SheetJS returns Date objects at UTC midnight
+          // Always use getUTC* to avoid timezone shift (e.g. IST would show prev day)
+          if (dateVal instanceof Date) {
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            roundDates[r] = `${dateVal.getUTCDate()} ${months[dateVal.getUTCMonth()]} ${dateVal.getUTCFullYear()}`;
+          } else {
+            roundDates[r] = dateVal.toString().trim();
+          }
         }
         if (audVal && !roundAuditors[r]) roundAuditors[r] = audVal;
       }
