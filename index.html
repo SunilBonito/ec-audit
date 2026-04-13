@@ -424,8 +424,8 @@ async function loadAllData() {
 function parseWorkbook(wb, loc) {
   const sheets = {};
   // Detect which audit rounds have any date filled (across all sheets)
-  const roundDates   = Array(MAX_ROUNDS).fill(null);   // earliest date found per round
-  const roundAuditors= Array(MAX_ROUNDS).fill('');
+  const roundDatesSet   = Array.from({length:MAX_ROUNDS}, ()=>new Set());
+  const roundAuditorsSet= Array.from({length:MAX_ROUNDS}, ()=>new Set());
 
   for (const sheetName of wb.SheetNames) {
     if (sheetName.toUpperCase().includes('DASHBOARD')) continue;
@@ -442,17 +442,22 @@ function parseWorkbook(wb, loc) {
       for (let r=0; r<MAX_ROUNDS; r++) {
         const dateVal = row[FIXED + r*BLOCK + 0];
         const audVal  = (row[FIXED + r*BLOCK + 1]||'').toString().trim();
-        if (dateVal && !roundDates[r]) {
-          // cellDates:true → SheetJS returns Date objects at UTC midnight
-          // Always use getUTC* to avoid timezone shift (e.g. IST would show prev day)
+        if (dateVal) {
+          let dateStr;
           if (dateVal instanceof Date) {
+            // Date object from SheetJS — add 12hrs offset to safely avoid timezone rollback
+            const d = new Date(dateVal.getTime() + 12*60*60*1000);
             const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-            roundDates[r] = `${dateVal.getUTCDate()} ${months[dateVal.getUTCMonth()]} ${dateVal.getUTCFullYear()}`;
+            dateStr = `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
           } else {
-            roundDates[r] = dateVal.toString().trim();
+            dateStr = dateVal.toString().trim();
           }
+          if (dateStr) roundDatesSet[r].add(dateStr);
         }
-        if (audVal && !roundAuditors[r]) roundAuditors[r] = audVal;
+        if (audVal) {
+          // Split on comma/semicolon to handle "Sunil CR, Ravi" typed in one cell
+          audVal.split(/[,;]/).map(a=>a.trim()).filter(Boolean).forEach(a=>roundAuditorsSet[r].add(a));
+        }
       }
     }
   }
@@ -468,6 +473,9 @@ function parseWorkbook(wb, loc) {
     }
   }
 
+  // Convert sets → display strings
+  const roundDates    = roundDatesSet.map(s=>[...s].join(' / ') || null);
+  const roundAuditors = roundAuditorsSet.map(s=>[...s].join(', '));
   return { sheets, roundDates, roundAuditors, totalSkus };
 }
 
@@ -640,7 +648,9 @@ function renderRound(roundIdx) {
   const dates    = activeLocs.map(l=>allData[l].roundDates[roundIdx]).filter(Boolean);
   const auds     = activeLocs.map(l=>allData[l].roundAuditors[roundIdx]).filter(Boolean);
   const uniqDate = [...new Set(dates)];
-  const uniqAud  = [...new Set(auds)];
+  // Flatten all auditor names from all locations, deduplicate
+  const allAudNames = auds.flatMap(a=>a.split(',').map(x=>x.trim())).filter(Boolean);
+  const uniqAud  = [...new Set(allAudNames)];
   const hasAny   = dates.length > 0;
   document.getElementById('round-banner').innerHTML = `
     <div class="rb-left" style="display:flex;align-items:center;gap:10px;">
