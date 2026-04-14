@@ -625,7 +625,7 @@ function aggregateRound(roundIdx) {
         if (disc === 'yes'    || status.includes('disc'))     cDisc++;
         if (sample === 'no'   || status.includes('missing'))  cMiss++;
         if (isRBS) cRBS++;
-        if (status.includes('check') || status.includes('missing') || status.includes('disc')) cCheck++;
+        if (status.includes('check') && !status.includes('missing') && !status.includes('disc')) cCheck++;
 
         // Collect flagged items — only rows with a genuine issue status
         // (Check / Missing / Discontinued). Skip OK and RBS-only rows.
@@ -725,7 +725,7 @@ function renderRound(roundIdx) {
 
   // Conforming + Issues always at the end
   const ok  = Object.values(locStats).reduce((s,l)=>s+l.ok,0);
-  const iss = Object.values(locStats).reduce((s,l)=>s+l.check,0);
+  const iss = Object.values(locStats).reduce((s,l)=>s+l.check+l.disc+l.miss,0);
   locSkuRow.innerHTML += `
     <div class="metric stat-conforming">
       <div class="ml">Conforming</div>
@@ -775,7 +775,7 @@ function renderRound(roundIdx) {
           <div class="lc-meta">${s.aud.toLocaleString()} / ${s.total.toLocaleString()} SKUs audited${s.date?' · '+s.date:''}${s.auditor?' · '+s.auditor:''}</div>
           <div class="pill-row">
             <div class="pill p-ok"><div class="pn">${s.ok}</div><div class="pl">OK</div></div>
-            <div class="pill p-wn"><div class="pn">${Math.max(0,s.check-s.disc-s.miss)}</div><div class="pl">Check</div></div>
+            <div class="pill p-wn"><div class="pn">${s.check||'—'}</div><div class="pl">Check</div></div>
             <div class="pill p-bd"><div class="pn">${s.disc+s.miss}</div><div class="pl">Action</div></div>
             <div class="pill p-rbs"><div class="pn">${s.rbs||0}</div><div class="pl">RBS</div></div>
             <div class="pill p-nd"><div class="pn">${s.total-s.aud}</div><div class="pl">Pending</div></div>
@@ -823,7 +823,7 @@ function renderCatChart(catStats, accentColor) {
 // ── STATUS DONUT (filtered) ────────────────────────────────────────────────────
 function renderDonut(locStats) {
   const ok   = Object.values(locStats).reduce((s,l)=>s+l.ok,0);
-  const chk  = Object.values(locStats).reduce((s,l)=>s+Math.max(0,l.check-l.disc-l.miss),0);
+  const chk  = Object.values(locStats).reduce((s,l)=>s+l.check,0);
   const act  = Object.values(locStats).reduce((s,l)=>s+l.disc+l.miss,0);
   const rbs  = Object.values(locStats).reduce((s,l)=>s+(l.rbs||0),0);
   const pend = Object.values(locStats).reduce((s,l)=>s+(l.total-l.aud),0);
