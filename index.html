@@ -140,6 +140,12 @@ tbody tr:hover td{background:#FAFAF8;}
 
 footer{text-align:center;font-size:11px;color:var(--ink3);padding:18px;border-top:1px solid var(--border);}
 
+@media(max-width:680px){
+  .cm-summary{grid-template-columns:repeat(2,1fr);}
+  .cm-erp{min-width:100px;}
+  .cm-brand{display:none;}
+}
+
 /* ERROR */
 #error-box{display:none;max-width:600px;margin:40px auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:28px;text-align:center;}
 #error-box h3{color:var(--red);margin-bottom:10px;}
@@ -323,6 +329,35 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
       </thead>
       <tbody id="cat-tbody"></tbody>
     </table>
+  </div>
+
+  <!-- Common Missing KPI -->
+  <div id="cm-kpi-section" style="margin-bottom:22px;display:none;">
+    <p class="sh" style="margin-bottom:12px;">Common missing samples — all locations</p>
+    <div style="background:var(--red-bg);border:1px solid #F7C1C1;border-radius:var(--rl);padding:18px 20px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:12px;color:#A32D2D;margin-bottom:4px;font-weight:600;">SKUs missing in ALL audited locations</div>
+          <div style="font-size:11px;color:#A32D2D;opacity:0.8;">Sample = No across every EC that has been audited this round</div>
+        </div>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+          <div style="text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:var(--red);letter-spacing:-1px;" id="cm-kpi-total">—</div>
+            <div style="font-size:10px;color:#A32D2D;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">Total missing</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:var(--red);letter-spacing:-1px;" id="cm-kpi-cats">—</div>
+            <div style="font-size:10px;color:#A32D2D;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">Categories</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:var(--red);letter-spacing:-1px;" id="cm-kpi-pct">—</div>
+            <div style="font-size:10px;color:#A32D2D;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">Of library</div>
+          </div>
+        </div>
+      </div>
+      <!-- Top 3 categories preview -->
+      <div id="cm-kpi-preview" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
   </div>
 
   <!-- Flagged items -->
@@ -895,7 +930,26 @@ function downloadIssuesExcel() {
   ws['!cols'] = [{wch:4},{wch:22},{wch:10},{wch:22},{wch:45},{wch:50},{wch:15},{wch:30}];
   const wb2 = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb2, ws, 'Flagged Items');
-  const filename = `EC_Audit_Flagged_${roundLabel.replace(/[^a-z0-9]/gi,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
+
+  // Sheet 2: Common Missing (SKUs missing in ALL audited locations)
+  if (_cmData && _cmData.total > 0) {
+    const cmHeaders = ['Category','ERP Code','Material Name','Brand',
+                       'Missing in locations','Audit Round'];
+    const cmRows = [];
+    const sorted = Object.entries(_cmData.byCategory).sort((a,b)=>b[1].length-a[1].length);
+    for (const [cat, skus] of sorted) {
+      for (const sku of skus) {
+        cmRows.push([cat, sku.erp, sku.name, sku.brand,
+                     _cmData.auditedLocs.join(', '),
+                     `Audit ${(_cmData.roundIdx||0)+1}`]);
+      }
+    }
+    const ws2 = XLSX.utils.aoa_to_sheet([cmHeaders, ...cmRows]);
+    ws2['!cols'] = [{wch:22},{wch:22},{wch:50},{wch:18},{wch:35},{wch:12}];
+    XLSX.utils.book_append_sheet(wb2, ws2, 'Common Missing');
+  }
+
+  const filename = `EC_Audit_Report_${roundLabel.replace(/[^a-z0-9]/gi,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
   XLSX.writeFile(wb2, filename);
 }
 
@@ -923,6 +977,83 @@ function renderIssues(flagged) {
       <span class="tag ${tc}">${tl}</span>
     </div>`;
   }).join('');
+}
+
+
+// ── COMMON MISSING ────────────────────────────────────────────────────────────
+function computeCommonMissing(roundIdx) {
+  const FIXED = 4, BLOCK = 9;
+  const auditedLocs = Object.keys(allData).filter(loc => allData[loc].roundDates[roundIdx]);
+  if (!auditedLocs.length) return { byCategory:{}, total:0, auditedLocs:[] };
+
+  const skuMap = {};  // key → { erp, name, brand, cat, auditedIn, missingIn }
+  for (const loc of auditedLocs) {
+    for (const [catName, dataRows] of Object.entries(allData[loc].sheets)) {
+      for (const row of dataRows) {
+        const erp  = (row[1]||'').toString().trim();
+        const name = (row[2]||'').toString().trim();
+        if (!erp && !name) continue;
+        const base   = FIXED + roundIdx * BLOCK;
+        const dateV  = (row[base+0]||'').toString().trim();
+        if (!dateV) continue;  // not audited this round
+        const sample = (row[base+2]||'').toString().trim().toLowerCase();
+        const key    = erp || name;
+        if (!skuMap[key]) skuMap[key] = {
+          erp, name, brand:(row[3]||'').toString().trim(),
+          cat:catName, auditedIn:new Set(), missingIn:new Set()
+        };
+        skuMap[key].auditedIn.add(loc);
+        if (sample === 'no') skuMap[key].missingIn.add(loc);
+      }
+    }
+  }
+
+  const byCategory = {};
+  let total = 0;
+  for (const sku of Object.values(skuMap)) {
+    const allAudited = auditedLocs.every(l => sku.auditedIn.has(l));
+    const allMissing = auditedLocs.every(l => sku.missingIn.has(l));
+    if (allAudited && allMissing) {
+      if (!byCategory[sku.cat]) byCategory[sku.cat] = [];
+      byCategory[sku.cat].push(sku);
+      total++;
+    }
+  }
+  // Sort each category list by name
+  for (const cat of Object.keys(byCategory)) {
+    byCategory[cat].sort((a,b) => a.name.localeCompare(b.name));
+  }
+  return { byCategory, total, auditedLocs };
+}
+
+let _cmData = null;  // store for download
+
+function renderCommonMissingKPI(roundIdx) {
+  const result = computeCommonMissing(roundIdx);
+  _cmData = { ...result, roundIdx };
+
+  const section = document.getElementById('cm-kpi-section');
+  if (!result.auditedLocs.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  const avgLib = Object.values(allData).reduce((s,l)=>s+l.totalSkus,0) / Object.keys(allData).length;
+  document.getElementById('cm-kpi-total').textContent = result.total.toLocaleString();
+  document.getElementById('cm-kpi-cats').textContent  = Object.keys(result.byCategory).length;
+  document.getElementById('cm-kpi-pct').textContent   = avgLib > 0
+    ? Math.round(result.total / avgLib * 100) + '%' : '—';
+
+  // Top categories preview pills
+  const preview = document.getElementById('cm-kpi-preview');
+  const sorted  = Object.entries(result.byCategory).sort((a,b)=>b[1].length-a[1].length);
+  preview.innerHTML = sorted.slice(0,5).map(([cat,skus]) => `
+    <span style="background:rgba(122,26,26,0.1);color:var(--red);border-radius:999px;
+                 padding:4px 12px;font-size:11px;font-weight:600;">
+      ${cat}: ${skus.length}
+    </span>`).join('');
+  if (sorted.length > 5) {
+    preview.innerHTML += `<span style="font-size:11px;color:#A32D2D;padding:4px 8px;">
+      +${sorted.length-5} more categories</span>`;
+  }
 }
 
 loadAllData();
