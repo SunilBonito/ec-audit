@@ -184,7 +184,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   .rb-pill{font-size:10px;padding:3px 9px;}
 
   /* Top 3 metric cards: 1 column on mobile */
-  #top-metrics{grid-template-columns:1fr!important;}
+  #top-metrics{grid-template-columns:repeat(3,1fr)!important;}
   .metric.hero .mv{font-size:32px;}
 
   /* Location SKU row: vertical stack, one card per row */
@@ -253,21 +253,37 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   <div class="round-banner" id="round-banner"></div>
 
   <!-- Metrics row 1: summary -->
-  <div id="top-metrics" class="metric-row" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px;">
+  <div id="top-metrics" class="metric-row" style="grid-template-columns:repeat(6,minmax(0,1fr));margin-bottom:12px;">
     <div class="metric hero">
-      <div class="ml">Avg completion</div>
+      <div class="ml">Audit completion</div>
       <div class="mv" id="m-pct">—</div>
-      <div class="ms">this audit round</div>
+      <div class="ms">SKUs audited this round</div>
     </div>
     <div class="metric">
-      <div class="ml">SKUs audited this round</div>
+      <div class="ml">SKUs audited</div>
       <div class="mv" id="m-aud">—</div>
-      <div class="ms">rows with data filled</div>
+      <div class="ms" id="m-catcount">— categories</div>
     </div>
-    <div class="metric">
-      <div class="ml">Categories</div>
-      <div class="mv" id="m-catcount">12</div>
-      <div class="ms">across all locations</div>
+    <!-- Compliance cards -->
+    <div class="metric" id="cc-overall-card" style="border-top:3px solid #1A5C38;">
+      <div class="ml" style="color:#1A5C38;">Audit Closure Compliance</div>
+      <div class="mv" id="cc-overall" style="color:#1A5C38;">—</div>
+      <div class="ms">conforming ÷ audited SKUs</div>
+    </div>
+    <div class="metric" id="cc-target-card" style="border-top:3px solid #7A4800;">
+      <div class="ml" style="color:#7A4800;">Target compliance</div>
+      <div class="mv" style="color:#7A4800;">≥80%</div>
+      <div class="ms" id="cc-gap">— vs your score</div>
+    </div>
+    <div class="metric" id="cc-closure-card" style="border-top:3px solid #185FA5;">
+      <div class="ml" style="color:#185FA5;">Issue closure rate</div>
+      <div class="mv" id="cc-closure" style="color:#185FA5;">—</div>
+      <div class="ms" id="cc-closure-sub">issues resolved vs prev round</div>
+    </div>
+    <div class="metric" id="cc-loc-card" style="border-top:3px solid #185FA5;">
+      <div class="ml" style="color:#185FA5;">Best location</div>
+      <div class="mv" id="cc-best-loc" style="color:#185FA5;font-size:18px;">—</div>
+      <div class="ms" id="cc-best-pct">— compliance</div>
     </div>
   </div>
 
@@ -324,6 +340,8 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
           <th style="text-align:right;">Disc</th>
           <th style="text-align:right;">Missing</th>
           <th style="text-align:right;color:var(--purple);">Rep. by Sample</th>
+          <th style="text-align:center;color:#1A5C38;" title="Conforming ÷ Audited SKUs">Conformance %</th>
+          <th style="text-align:center;color:#185FA5;" title="Issues resolved vs previous audit round">Closure %</th>
           <th>Status</th>
         </tr>
       </thead>
@@ -716,10 +734,15 @@ function renderRound(roundIdx) {
     const div  = document.createElement('div');
     div.className = 'metric';
     div.style.borderTop = `3px solid ${col}`;
+    const locCompliance = locStats[loc] && locStats[loc].aud > 0
+      ? Math.round(locStats[loc].ok / locStats[loc].aud * 100) : null;
+    const complianceStr = locCompliance !== null
+      ? `&nbsp;·&nbsp; <strong style="color:${locCompliance>=80?'#1A5C38':locCompliance>=50?'#7A4800':'#7A1A1A'};">${locCompliance}% compliance</strong>`
+      : '';
     div.innerHTML = `
       <div class="ml" style="color:${col};font-weight:700;">${loc} <span style="opacity:0.55;font-weight:400;">${LOC_CITIES[loc]||''}</span></div>
       <div class="mv">${skuN.toLocaleString()}</div>
-      <div class="ms">SKUs &nbsp;·&nbsp; <strong style="color:${col};">${pctD}% audited</strong></div>`;
+      <div class="ms">SKUs &nbsp;·&nbsp; <strong style="color:${col};">${pctD}% audited</strong>${complianceStr}</div>`;
     locSkuRow.appendChild(div);
   });
 
@@ -742,9 +765,93 @@ function renderRound(roundIdx) {
   const aud  = Object.values(locStats).reduce((s,l)=>s+l.aud,0);
   const pcts = activeLocs.map(l=>locStats[l]?.pct||0);
   const avgP = pcts.length ? Math.round(pcts.reduce((a,b)=>a+b,0)/pcts.length) : 0;
-  document.getElementById('m-catcount').textContent = Object.keys(catStats).length;
+  document.getElementById('m-catcount').textContent = Object.keys(catStats).length+' categories';
   document.getElementById('m-pct').textContent  = avgP+'%';
   document.getElementById('m-aud').textContent  = aud.toLocaleString();
+
+  // ── Audit Closure Compliance ──────────────────────────────────────────────
+  const totalAud   = Object.values(locStats).reduce((s,l)=>s+l.aud,0);
+  const totalOkC   = Object.values(locStats).reduce((s,l)=>s+l.ok,0);
+  const compliance = totalAud > 0 ? Math.round(totalOkC / totalAud * 100) : 0;
+  const COMPLIANCE_TARGET = 80;
+
+  const colFn = pct => pct >= COMPLIANCE_TARGET ? '#1A5C38' : pct >= 50 ? '#7A4800' : '#7A1A1A';
+  const bgFn  = pct => pct >= COMPLIANCE_TARGET ? '#E4F2EB' : pct >= 50 ? '#FDF0DC' : '#FAEBEB';
+
+  // Overall compliance card
+  const ccEl   = document.getElementById('cc-overall');
+  const ccCard = document.getElementById('cc-overall-card');
+  if (ccEl && totalAud > 0) {
+    const col = colFn(compliance);
+    ccEl.textContent = compliance + '%';
+    ccEl.style.color = col;
+    ccCard.style.borderTopColor = col;
+    ccCard.querySelector('.ml').style.color = col;
+    ccCard.style.background = bgFn(compliance);
+  }
+
+  // Gap vs target
+  const gapEl = document.getElementById('cc-gap');
+  if (gapEl) {
+    if (totalAud === 0) {
+      gapEl.textContent = 'no data yet';
+      gapEl.style.color = '';
+    } else {
+      const gap = compliance - COMPLIANCE_TARGET;
+      gapEl.textContent = gap >= 0 ? `+${gap}% above target ✓` : `${gap}% below target`;
+      gapEl.style.color = gap >= 0 ? '#1A5C38' : '#7A1A1A';
+    }
+  }
+
+  // Best location card
+  const locsWithData = activeLocs.filter(l => locStats[l] && locStats[l].aud > 0);
+  const bestLoc = locsWithData.map(l => ({
+    loc: l,
+    pct: Math.round(locStats[l].ok / locStats[l].aud * 100)
+  })).sort((a,b) => b.pct - a.pct)[0];
+
+  const bestLocEl = document.getElementById('cc-best-loc');
+  const bestPctEl = document.getElementById('cc-best-pct');
+  const bestCard  = document.getElementById('cc-loc-card');
+  if (bestLocEl) {
+    if (bestLoc) {
+      const locCol = LOC_COLORS[bestLoc.loc] || '#185FA5';
+      bestLocEl.textContent = bestLoc.loc;
+      bestLocEl.style.color = locCol;
+      bestPctEl.textContent = bestLoc.pct + '% compliance';
+      bestCard.style.borderTopColor = locCol;
+      bestCard.querySelector('.ml').style.color = locCol;
+    } else {
+      bestLocEl.textContent = '—';
+      bestPctEl.textContent = 'no data yet';
+    }
+  }
+
+  // Issue closure rate card — compare current round issues vs previous round
+  const closureEl  = document.getElementById('cc-closure');
+  const closureCard= document.getElementById('cc-closure-card');
+  const closureSub = document.getElementById('cc-closure-sub');
+  if (closureEl && roundIdx > 0) {
+    const prevAgg    = aggregateRound(roundIdx - 1);
+    const prevIssues = Object.values(prevAgg.locStats).reduce((s,l)=>s+l.check+l.disc+l.miss,0);
+    const currIssues = Object.values(locStats).reduce((s,l)=>s+l.check+l.disc+l.miss,0);
+    if (prevIssues > 0) {
+      const resolved   = Math.max(0, prevIssues - currIssues);
+      const closurePct = Math.round(resolved / prevIssues * 100);
+      closureEl.textContent = closurePct + '%';
+      const cCol = closurePct>=80?'#1A5C38':closurePct>=50?'#7A4800':'#7A1A1A';
+      closureEl.style.color = cCol;
+      closureCard.style.borderTopColor = cCol;
+      closureCard.querySelector('.ml').style.color = cCol;
+      closureSub.textContent = `${resolved} of ${prevIssues} issues resolved`;
+    } else {
+      closureEl.textContent = 'N/A';
+      closureSub.textContent = 'no issues in prev round';
+    }
+  } else if (closureEl && roundIdx === 0) {
+    closureEl.textContent = '—';
+    closureSub.textContent = 'available from Audit 2 onwards';
+  }
 
   // ── Location progress cards ──────────────────────────────────────
   const lcEl = document.getElementById('loc-cards');
@@ -788,7 +895,14 @@ function renderRound(roundIdx) {
   renderCatChart(catStats, locColor);
   renderDonut(locStats, locColor);
   renderTrend(activeLocs);
-  renderCatTable(catStats);
+  // Compute previous round stats for closure compliance
+  let prevCatStats = null;
+  if (roundIdx > 0) {
+    const prevFilter = currentFilter;
+    const prevAgg    = aggregateRound(roundIdx - 1);
+    prevCatStats = prevAgg.catStats;
+  }
+  renderCatTable(catStats, prevCatStats);
   renderIssues(flagged);
 
   document.getElementById('last-updated').textContent =
@@ -887,7 +1001,7 @@ function renderTrend(activeLocs) {
 }
 
 // ── CATEGORY TABLE (filtered) ─────────────────────────────────────────────────
-function renderCatTable(catStats) {
+function renderCatTable(catStats, prevCatStats) {
   const tbody = document.getElementById('cat-tbody');
   tbody.innerHTML = '';
   Object.entries(catStats).sort((a,b)=>b[1].total-a[1].total).forEach(([cat,s])=>{
@@ -897,6 +1011,30 @@ function renderCatTable(catStats) {
     else if (pct>=60){tag='In progress';cls='t-wn';}
     else if (pct>0){tag='Started';cls='t-wn';}
     else{tag='Not started';cls='t-nd';}
+
+    // Conformance % = conforming ÷ audited for this category
+    const confPct = s.aud>0 ? Math.round(s.ok/s.aud*100) : null;
+    const confCol = confPct===null?'var(--ink3)':confPct>=80?'var(--green)':confPct>=50?'var(--amber)':'var(--red)';
+    const confStr = confPct===null ? '—' : confPct+'%';
+
+    // Closure % = issues resolved vs previous round
+    // = (prev issues - current issues) ÷ prev issues × 100
+    let closureStr = '—';
+    let closureCol = 'var(--ink3)';
+    if (prevCatStats && prevCatStats[cat]) {
+      const prev = prevCatStats[cat];
+      const prevIssues = (prev.check||0) + (prev.disc||0) + (prev.miss||0);
+      const currIssues = (s.check||0)    + (s.disc||0)    + (s.miss||0);
+      if (prevIssues > 0 && s.aud > 0) {
+        const resolved = Math.max(0, prevIssues - currIssues);
+        const closurePct = Math.round(resolved / prevIssues * 100);
+        closureStr = closurePct + '%';
+        closureCol = closurePct>=80?'var(--green)':closurePct>=50?'var(--amber)':'var(--red)';
+      } else if (prevIssues === 0) {
+        closureStr = 'N/A';
+      }
+    }
+
     tbody.innerHTML+=`<tr>
       <td><strong>${cat}</strong></td>
       <td class="mono">${s.total.toLocaleString()}</td>
@@ -906,6 +1044,8 @@ function renderCatTable(catStats) {
       <td style="text-align:right;color:${s.disc>0?'var(--red)':'var(--ink3)'};font-weight:600;" class="mono">${s.disc||'—'}</td>
       <td style="text-align:right;color:${s.miss>0?'var(--red)':'var(--ink3)'};font-weight:600;" class="mono">${s.miss||'—'}</td>
       <td style="text-align:right;color:${s.rbs>0?'var(--purple)':'var(--ink3)'};font-weight:600;" class="mono">${s.rbs||'—'}</td>
+      <td style="text-align:center;font-weight:700;color:${confCol};" class="mono">${confStr}</td>
+      <td style="text-align:center;font-weight:700;color:${closureCol};" class="mono">${closureStr}</td>
       <td><span class="tag ${cls}">${tag}</span></td>
     </tr>`;
   });
