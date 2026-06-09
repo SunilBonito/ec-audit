@@ -139,6 +139,30 @@ tbody tr:hover td{background:#FAFAF8;}
 .no-data{padding:28px;text-align:center;font-size:12px;color:var(--ink3);}
 
 footer{text-align:center;font-size:11px;color:var(--ink3);padding:18px;border-top:1px solid var(--border);}
+.pdf-btn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:8px 16px;
+         font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:background 0.15s;}
+.pdf-btn:hover{background:var(--navy2);}
+@media print {
+  @page{size:A4;margin:14mm 12mm 12mm 12mm;}
+  nav,.filter-bar,#download-issues-btn,.pdf-btn,.refresh-btn,
+  #trend-section,#cm-kpi-section,.icard,.icard-header,
+  .sh[style*="margin-bottom:12"]{display:none!important;}
+  body{background:#fff;font-size:10px;}
+  .main{padding:0;max-width:100%;}
+  #pdf-header{display:block!important;}
+  #top-metrics{grid-template-columns:repeat(3,1fr)!important;gap:6px!important;margin-bottom:10px!important;}
+  .metric{padding:10px 12px;border-radius:6px;break-inside:avoid;}
+  .mv{font-size:20px!important;}
+  #loc-sku-row{grid-template-columns:repeat(3,1fr)!important;gap:6px!important;margin-bottom:10px!important;}
+  .loc-grid{grid-template-columns:repeat(2,1fr)!important;gap:8px!important;margin-bottom:10px!important;}
+  .lc{padding:10px 12px;break-inside:avoid;}
+  .charts-row{grid-template-columns:2fr 1fr!important;gap:8px!important;margin-bottom:10px!important;break-inside:avoid;}
+  .card{padding:12px;break-inside:avoid;}
+  .tcard{margin-bottom:10px;}
+  th,td{padding:6px 8px!important;font-size:9px!important;}
+  .round-banner{padding:10px 14px;margin-bottom:10px;}
+  .rb-left h2{font-size:13px;}
+}
 
 @media(max-width:680px){
   .cm-summary{grid-template-columns:repeat(2,1fr);}
@@ -248,6 +272,19 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
 </div>
 
 <div class="main" id="main-content" style="display:none;">
+  <div id="pdf-header" style="display:none;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #0F2340;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+      <div>
+        <div style="font-size:18px;font-weight:700;color:#0F2340;">Bonito Designs</div>
+        <div style="font-size:13px;color:#5C5A54;margin-top:2px;">Material Library Audit Report</div>
+      </div>
+      <div style="text-align:right;font-size:10px;color:#9B998F;">
+        <div id="pdf-date"  style="font-weight:600;color:#0F2340;font-size:12px;"></div>
+        <div id="pdf-round" style="margin-top:2px;"></div>
+        <div id="pdf-loc"   style="margin-top:1px;"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- Round banner -->
   <div class="round-banner" id="round-banner"></div>
@@ -381,12 +418,15 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   <!-- Flagged items -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
     <p class="sh" style="margin-bottom:0;">Flagged items & comments — <span id="iss-round-label">Audit 1</span></p>
-    <button id="download-issues-btn" onclick="downloadIssuesExcel()"
-      style="display:none;align-items:center;gap:6px;background:var(--navy);color:#fff;border:none;
-             border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;
-             font-family:inherit;transition:background 0.15s;white-space:nowrap;">
-      ⬇ Download Excel
-    </button>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button class="pdf-btn" onclick="exportPDF()" title="Export clean PDF for Teams / slides">📄 Export PDF</button>
+      <button id="download-issues-btn" onclick="downloadIssuesExcel()"
+        style="display:none;align-items:center;gap:6px;background:var(--navy);color:#fff;border:none;
+               border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;
+               font-family:inherit;transition:background 0.15s;white-space:nowrap;">
+        ⬇ Download Excel
+      </button>
+    </div>
   </div>
   <div class="icard">
     <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--bg);">
@@ -1194,6 +1234,21 @@ function renderCommonMissingKPI(roundIdx) {
     preview.innerHTML += `<span style="font-size:11px;color:#A32D2D;padding:4px 8px;">
       +${sorted.length-5} more categories</span>`;
   }
+}
+
+function exportPDF() {
+  const roundLabel = document.getElementById('iss-round-label')?.textContent || 'Audit 1';
+  const locLabel   = document.getElementById('loc-round-label')?.textContent || 'All locations';
+  const now = new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});
+  const hdr = document.getElementById('pdf-header');
+  document.getElementById('pdf-date').textContent  = now;
+  document.getElementById('pdf-round').textContent = roundLabel;
+  document.getElementById('pdf-loc').textContent   = locLabel;
+  if (hdr) hdr.style.display = 'block';
+  setTimeout(()=>{
+    window.print();
+    setTimeout(()=>{ if(hdr) hdr.style.display='none'; }, 1500);
+  }, 300);
 }
 
 loadAllData();
