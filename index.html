@@ -806,7 +806,6 @@ function renderRound(roundIdx) {
   document.getElementById('m-pct').textContent     = avgP+'%';
   document.getElementById('m-catcount').textContent= Object.keys(catStats).length;
   document.getElementById('m-iss-kpi').textContent = iss.toLocaleString();
-  document.getElementById('m-aud').textContent     = aud.toLocaleString();
 
   // ── Compliance card ───────────────────────────────────────────────────
   const ccEl   = document.getElementById('cc-overall');
@@ -829,10 +828,8 @@ function renderRound(roundIdx) {
     gapEl.style.fontWeight = '600';
   }
 
-  // ── Best location (shown in banner area as a pill) ────────────────────
+  // best location — used in compliance card label
   const locsWithData = activeLocs.filter(l=>locStats[l]&&locStats[l].aud>0);
-  const bestLoc = locsWithData.map(l=>({loc:l,pct:Math.round(locStats[l].ok/locStats[l].aud*100)}))
-                              .sort((a,b)=>b.pct-a.pct)[0];
 
   // ── Closure rate ──────────────────────────────────────────────────────
   const closureEl  = document.getElementById('cc-closure');
