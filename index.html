@@ -150,7 +150,7 @@ footer{text-align:center;font-size:11px;color:var(--ink3);padding:18px;border-to
   body{background:#fff;font-size:10px;}
   .main{padding:0;max-width:100%;}
   #pdf-header{display:block!important;}
-  #top-metrics{grid-template-columns:repeat(2,1fr)!important;gap:6px!important;margin-bottom:10px!important;}
+  #top-metrics{grid-template-columns:repeat(3,1fr)!important;gap:6px!important;margin-bottom:10px!important;}
   .metric{padding:10px 12px;border-radius:6px;break-inside:avoid;}
   .mv{font-size:20px!important;}
   #loc-sku-row{grid-template-columns:repeat(3,1fr)!important;gap:6px!important;margin-bottom:10px!important;}
@@ -208,7 +208,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   .rb-pill{font-size:10px;padding:3px 9px;}
 
   /* Top 3 metric cards: 1 column on mobile */
-  #top-metrics{grid-template-columns:repeat(2,1fr)!important;}
+  #top-metrics{grid-template-columns:repeat(3,1fr)!important;}
   .metric.hero .mv{font-size:32px;}
 
   /* Location SKU row: vertical stack, one card per row */
@@ -290,7 +290,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   <div id="round-banner" style="margin-bottom:20px;"></div>
 
   <!-- KPI Strip: 4 clean cards -->
-  <div id="top-metrics" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px;">
+  <div id="top-metrics" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px;">
     <div class="metric hero" style="cursor:pointer;" onclick="document.getElementById('loc-cards').scrollIntoView({behavior:'smooth'})">
       <div class="ml">Avg audit completion</div>
       <div class="mv" id="m-pct">—</div>
@@ -304,12 +304,12 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
     <div class="metric" style="cursor:pointer;" onclick="document.getElementById('issues-display').scrollIntoView({behavior:'smooth'})">
       <div class="ml">Issues flagged</div>
       <div class="mv" id="m-iss-kpi" style="color:var(--red);">—</div>
-      <div class="ms">tap to see list ↓</div>
+      <div class="ms" id="m-iss-sub">check + missing only ↓</div>
     </div>
-    <div class="metric" style="cursor:pointer;" onclick="document.getElementById('cm-kpi-section').scrollIntoView({behavior:'smooth'})">
-      <div class="ml">Common missing</div>
-      <div class="mv" id="m-cm-kpi" style="color:var(--amber);">—</div>
-      <div class="ms">across all locations ↓</div>
+    <div class="metric" style="cursor:pointer;" onclick="document.getElementById('issues-display').scrollIntoView({behavior:'smooth'})">
+      <div class="ml">Discontinued by vendor</div>
+      <div class="mv" id="m-disc-kpi" style="color:#4A1E8C;">—</div>
+      <div class="ms">excluded from compliance</div>
     </div>
   </div>
 
@@ -705,11 +705,18 @@ function aggregateRound(roundIdx) {
         if (!dateV && !sample && !conform) continue;
         cAud++;
 
-        if (conform === 'yes' || status.includes('ok'))      cOk++;
-        if (disc === 'yes'    || status.includes('disc'))     cDisc++;
-        if (sample === 'no'   || status.includes('missing'))  cMiss++;
+        if (disc === 'yes' || status.includes('disc')) {
+          cDisc++;
+          // Discontinued: don't count in audited (excluded from compliance calc)
+          cAud--;
+        } else if (conform === 'yes' || status.includes('ok')) {
+          cOk++;
+        } else if (sample === 'no' || status.includes('missing')) {
+          cMiss++;
+        } else if (status.includes('check') && !status.includes('missing')) {
+          cCheck++;
+        }
         if (isRBS) cRBS++;
-        if (status.includes('check') && !status.includes('missing') && !status.includes('disc')) cCheck++;
 
         // Collect flagged items — only rows with a genuine issue status
         // (Check / Missing / Discontinued). Skip OK and RBS-only rows.
@@ -726,6 +733,14 @@ function aggregateRound(roundIdx) {
             status:  (row[base+8]||'').toString().trim(),
             followup:(row[base+7]||'').toString().trim(),
           });
+        }
+        // Track per-ERP issue status for closure rate calculation
+        const erpKey = (row[1]||'').toString().trim() || matName;
+        if (erpKey) {
+          const hasIssueStatus = status.includes('check') || status.includes('missing');
+          if (!erpIssueMap[loc]) erpIssueMap[loc] = {};
+          if (!erpIssueMap[loc][catName]) erpIssueMap[loc][catName] = {};
+          erpIssueMap[loc][catName][erpKey] = hasIssueStatus;
         }
       }
 
@@ -746,7 +761,7 @@ function aggregateRound(roundIdx) {
     };
   }
 
-  return {locStats, catStats, flagged};
+  return {locStats, catStats, flagged, erpIssueMap};
 }
 
 // ── RENDER ROUND ─────────────────────────────────────────────────────────────
@@ -794,7 +809,8 @@ function renderRound(roundIdx) {
   // ── Aggregates ────────────────────────────────────────────────────────
   const aud     = Object.values(locStats).reduce((s,l)=>s+l.aud,0);
   const ok      = Object.values(locStats).reduce((s,l)=>s+l.ok,0);
-  const iss     = Object.values(locStats).reduce((s,l)=>s+l.check+l.disc+l.miss,0);
+  const iss     = Object.values(locStats).reduce((s,l)=>s+l.check+l.miss,0);  // disc is separate
+  const discTotal= Object.values(locStats).reduce((s,l)=>s+l.disc,0);
   const pcts    = activeLocs.map(l=>locStats[l]?.pct||0);
   const avgP    = pcts.length ? Math.round(pcts.reduce((a,b)=>a+b,0)/pcts.length) : 0;
   const compliance = aud > 0 ? Math.round(ok/aud*100) : 0;
@@ -806,6 +822,8 @@ function renderRound(roundIdx) {
   document.getElementById('m-pct').textContent     = avgP+'%';
   document.getElementById('m-catcount').textContent= Object.keys(catStats).length;
   document.getElementById('m-iss-kpi').textContent = iss.toLocaleString();
+  const discKpiEl = document.getElementById('m-disc-kpi');
+  if (discKpiEl) discKpiEl.textContent = discTotal.toLocaleString();
 
   // ── Compliance card ───────────────────────────────────────────────────
   const ccEl   = document.getElementById('cc-overall');
@@ -838,10 +856,26 @@ function renderRound(roundIdx) {
   const closureCard= document.getElementById('cc-closure-card');
   if (closureEl && roundIdx > 0) {
     const prevAgg    = aggregateRound(roundIdx - 1);
-    const prevIssues = Object.values(prevAgg.locStats).reduce((s,l)=>s+l.check+l.disc+l.miss,0);
-    const currIssues = iss;
+    // Per-ERP closure: count ERPs that had issues in prev round but are OK now
+    const {locStats: prevLocStats, erpIssueMap: prevErpMap} = prevAgg;
+    const {erpIssueMap: currErpMap} = aggregateRound(roundIdx);
+    let prevIssueCount = 0, resolvedCount = 0;
+    for (const loc of activeLocs) {
+      const prevLoc = prevErpMap[loc] || {};
+      const currLoc = currErpMap[loc] || {};
+      for (const cat of Object.keys(prevLoc)) {
+        for (const [erp, hadIssue] of Object.entries(prevLoc[cat])) {
+          if (hadIssue) {
+            prevIssueCount++;
+            const nowHasIssue = currLoc[cat]?.[erp];
+            if (nowHasIssue === false) resolvedCount++;  // explicitly false = audited & OK
+          }
+        }
+      }
+    }
+    const prevIssues = prevIssueCount;
+    const resolved   = resolvedCount;
     if (prevIssues > 0) {
-      const resolved   = Math.max(0, prevIssues - currIssues);
       const closurePct = Math.round(resolved/prevIssues*100);
       closureEl.textContent = closurePct+'%';
       const cCol = colFn(closurePct);
@@ -897,7 +931,8 @@ function renderRound(roundIdx) {
           <div class="pill-row">
             <div class="pill p-ok"><div class="pn">${s.ok.toLocaleString()}</div><div class="pl">OK</div></div>
             <div class="pill p-wn"><div class="pn">${s.check||'—'}</div><div class="pl">Check</div></div>
-            <div class="pill p-bd"><div class="pn">${s.disc+s.miss||'—'}</div><div class="pl">Action</div></div>
+            <div class="pill p-bd"><div class="pn">${s.miss||'—'}</div><div class="pl">Missing</div></div>
+            <div class="pill" style="background:#F3E8FF;flex:1;border-radius:7px;padding:7px 3px;text-align:center;"><div class="pn" style="font-size:14px;font-weight:700;color:#4A1E8C;">${s.disc||'—'}</div><div class="pl" style="font-size:9px;font-weight:600;color:#4A1E8C;">Disc</div></div>
             <div class="pill p-nd"><div class="pn">${(s.total-s.aud).toLocaleString()}</div><div class="pl">Pending</div></div>
           </div>
           <div style="margin-top:10px;padding-top:8px;border-top:0.5px solid var(--border);
@@ -977,12 +1012,13 @@ function renderCatChart(catStats, accentColor) {
 function renderDonut(locStats) {
   const ok   = Object.values(locStats).reduce((s,l)=>s+l.ok,0);
   const chk  = Object.values(locStats).reduce((s,l)=>s+l.check,0);
-  const act  = Object.values(locStats).reduce((s,l)=>s+l.disc+l.miss,0);
+  const miss = Object.values(locStats).reduce((s,l)=>s+l.miss,0);
+  const disc = Object.values(locStats).reduce((s,l)=>s+l.disc,0);
   const rbs  = Object.values(locStats).reduce((s,l)=>s+(l.rbs||0),0);
   const pend = Object.values(locStats).reduce((s,l)=>s+(l.total-l.aud),0);
-  const dData   = [ok,chk,act,rbs,pend];
-  const dLabels = ['Conforming','Needs check','Action needed','Represented by Sample','Not audited'];
-  const dColors = ['#1A5C38','#7A4800','#7A1A1A','#4A1E8C','#DDD9D0'];
+  const dData   = [ok,chk,miss,disc,rbs,pend];
+  const dLabels = ['Conforming','Needs check','Missing','Discontinued','Rep. by Sample','Not audited'];
+  const dColors = ['#1A5C38','#7A4800','#7A1A1A','#4A1E8C','#9333EA','#DDD9D0'];
   if (donutChart) donutChart.destroy();
   donutChart = new Chart(document.getElementById('donutChart'),{
     type:'doughnut',
@@ -1062,8 +1098,8 @@ function renderCatTable(catStats, prevCatStats) {
     let closureCol = 'var(--ink3)';
     if (prevCatStats && prevCatStats[cat]) {
       const prev = prevCatStats[cat];
-      const prevIssues = (prev.check||0) + (prev.disc||0) + (prev.miss||0);
-      const currIssues = (s.check||0)    + (s.disc||0)    + (s.miss||0);
+      const prevIssues = (prev.check||0) + (prev.miss||0);  // exclude disc
+      const currIssues = (s.check||0)    + (s.miss||0);
       if (prevIssues > 0 && s.aud > 0) {
         const resolved = Math.max(0, prevIssues - currIssues);
         const closurePct = Math.round(resolved / prevIssues * 100);
@@ -1165,7 +1201,8 @@ function computeCommonMissing(roundIdx) {
   const auditedLocs = Object.keys(allData).filter(loc => allData[loc].roundDates[roundIdx]);
   if (!auditedLocs.length) return { byCategory:{}, total:0, auditedLocs:[] };
 
-  const skuMap = {};  // key → { erp, name, brand, cat, auditedIn, missingIn }
+  const skuMap = {};
+  const erpIssueMap = {};  // loc → catName → erpKey → hasIssue (true/false)
   for (const loc of auditedLocs) {
     for (const [catName, dataRows] of Object.entries(allData[loc].sheets)) {
       for (const row of dataRows) {
