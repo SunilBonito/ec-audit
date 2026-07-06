@@ -319,7 +319,26 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   </div>
 
   <!-- Round banner -->
-  <div id="round-banner" style="margin-bottom:20px;"></div>
+  <div id="round-banner" style="margin-bottom:16px;"></div>
+
+  <!-- Audit comparison section (shown from Audit 2 onwards) -->
+  <div class="cmp-wrap" id="cmp-section">
+    <p class="sh" id="cmp-title" style="margin-bottom:10px;">Audit comparison — Audit 1 vs Audit 2</p>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:10px;">
+      <table class="cmp-table" id="cmp-table">
+        <thead>
+          <tr>
+            <th class="cmp-th-blank">Metric</th>
+            <th class="cmp-th-a1" id="cmp-h-prev">Audit 1</th>
+            <th class="cmp-th-a2" id="cmp-h-curr">Audit 2</th>
+          </tr>
+        </thead>
+        <tbody id="cmp-tbody"></tbody>
+      </table>
+    </div>
+    <p class="sh" style="margin-bottom:10px;font-size:9px;">Location breakdown</p>
+    <div class="loc-cmp-grid" id="loc-cmp-grid" style="margin-bottom:16px;"></div>
+  </div>
 
   <!-- KPI Strip: 4 clean cards -->
   <div id="top-metrics" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:14px;">
@@ -346,38 +365,32 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
     </div>
   </div>
 
-  <!-- Compliance block: 2 cards side by side -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;" id="compliance-block">
-    <div id="cc-overall-card" class="metric" style="border-top:3px solid #1A5C38;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-        <div>
-          <div class="ml" style="color:#1A5C38;">Audit closure compliance</div>
-          <div style="font-size:10px;color:var(--ink3);margin-top:2px;">
-            Out of all SKUs physically checked, how many are in good condition with proper samples &amp; codes
-          </div>
-        </div>
-        <div class="mv" id="cc-overall" style="color:#1A5C38;font-size:28px;">—</div>
+  <!-- Compliance + closure: compact single row, no cards -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;border-left:4px solid #1A5C38;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1A5C38;">Audit closure compliance</div>
+        <div style="font-size:24px;font-weight:700;letter-spacing:-0.5px;" id="cc-overall">—</div>
       </div>
-      <div style="background:var(--bg);border-radius:999px;height:4px;margin-bottom:8px;overflow:hidden;">
-        <div id="cc-bar" style="height:4px;border-radius:999px;width:0%;background:#1A5C38;transition:width 0.6s;"></div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;">Condition of sample &amp; unique codes · Conforming ÷ Audited</div>
+      <div style="background:var(--bg);border-radius:999px;height:3px;margin-bottom:8px;overflow:hidden;">
+        <div id="cc-bar" style="height:3px;border-radius:999px;width:0%;transition:width 0.6s;"></div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
-        <span style="background:#E4F2EB;color:#1A5C38;border-radius:999px;padding:2px 9px;font-size:10px;font-weight:600;">🟢 ≥95% — Excellent</span>
-        <span style="background:#FDF0DC;color:#7A4800;border-radius:999px;padding:2px 9px;font-size:10px;font-weight:600;">🟡 80–94% — Good, minor gaps to close</span>
-        <span style="background:#FAEBEB;color:#7A1A1A;border-radius:999px;padding:2px 9px;font-size:10px;font-weight:600;">🔴 &lt;80% — Urgent action needed</span>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+        <span style="background:#E4F2EB;color:#1A5C38;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:600;">≥95% Excellent</span>
+        <span style="background:#FDF0DC;color:#7A4800;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:600;">80–94% Good</span>
+        <span style="background:#FAEBEB;color:#7A1A1A;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:600;">&lt;80% Critical</span>
       </div>
       <div style="font-size:11px;font-weight:600;" id="cc-gap"></div>
     </div>
-    <div id="cc-closure-card" class="metric" style="border-top:3px solid #185FA5;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-        <div>
-          <div class="ml" style="color:#185FA5;">Issue closure rate</div>
-          <div style="font-size:10px;color:var(--ink3);margin-top:2px;">Issues resolved vs previous audit round</div>
-        </div>
-        <div class="mv" id="cc-closure" style="color:#185FA5;font-size:28px;">—</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;border-left:4px solid #185FA5;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#185FA5;">Issue closure rate</div>
+        <div style="font-size:24px;font-weight:700;letter-spacing:-0.5px;" id="cc-closure">—</div>
       </div>
-      <div style="background:var(--bg);border-radius:999px;height:4px;margin-bottom:8px;overflow:hidden;">
-        <div id="cc-closure-bar" style="height:4px;border-radius:999px;width:0%;background:#185FA5;transition:width 0.6s;"></div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;">Issues resolved vs previous audit round</div>
+      <div style="background:var(--bg);border-radius:999px;height:3px;margin-bottom:8px;overflow:hidden;">
+        <div id="cc-closure-bar" style="height:3px;border-radius:999px;width:0%;transition:width 0.6s;"></div>
       </div>
       <div style="font-size:11px;color:var(--ink3);" id="cc-closure-sub">Available from Audit 2 onwards</div>
     </div>
@@ -417,24 +430,6 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
     <div style="position:relative;height:220px;">
       <canvas id="trendChart" role="img" aria-label="Trend line chart across audit rounds">Trend chart.</canvas>
     </div>
-  </div>
-
-  <!-- Audit comparison section -->
-  <div class="cmp-wrap" id="cmp-section">
-    <p class="sh" id="cmp-title">Audit comparison — Audit 1 vs Audit 2</p>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:14px;">
-      <table class="cmp-table" id="cmp-table">
-        <thead>
-          <tr>
-            <th class="cmp-th-blank">Metric</th>
-            <th class="cmp-th-a1" id="cmp-h-prev">Audit 1</th>
-            <th class="cmp-th-a2" id="cmp-h-curr">Audit 2</th>
-          </tr>
-        </thead>
-        <tbody id="cmp-tbody"></tbody>
-      </table>
-    </div>
-    <div class="loc-cmp-grid" id="loc-cmp-grid"></div>
   </div>
 
   <!-- Category pills (clickable, scroll to table) -->
