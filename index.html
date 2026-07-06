@@ -815,7 +815,8 @@ function renderRound(roundIdx) {
   const discTotal= Object.values(locStats).reduce((s,l)=>s+l.disc,0);
   const pcts    = activeLocs.map(l=>locStats[l]?.pct||0);
   const avgP    = pcts.length ? Math.round(pcts.reduce((a,b)=>a+b,0)/pcts.length) : 0;
-  const compliance = aud > 0 ? Math.round(ok/aud*100) : 0;
+  const audExDisc = aud - Object.values(locStats).reduce((s,l)=>s+l.disc,0);
+  const compliance = audExDisc > 0 ? Math.round(ok/audExDisc*100) : 0;
   const COMPLIANCE_TARGET = 95;
   const colFn = p => p>=COMPLIANCE_TARGET?'#1A5C38':p>=80?'#7A4800':'#7A1A1A';
   const bgFn  = p => p>=COMPLIANCE_TARGET?'#E4F2EB':p>=80?'#FDF0DC':'#FAEBEB';
@@ -901,7 +902,8 @@ function renderRound(roundIdx) {
     const s   = locStats[loc];
     const col = LOC_COLORS[loc]||'#1A3A5C';
     const skuN= allData[loc]?.totalSkus||0;
-    const locComp = s&&s.aud>0 ? Math.round(s.ok/s.aud*100) : null;
+    const locAudExDisc = s ? (s.aud - (s.disc||0)) : 0;
+    const locComp = locAudExDisc>0 ? Math.round(s.ok/locAudExDisc*100) : null;
     const compCol = locComp!==null ? colFn(locComp) : 'var(--ink3)';
     const compLabel = locComp===null ? '—'
       : locComp>=COMPLIANCE_TARGET ? '✓ Excellent'
@@ -1243,7 +1245,8 @@ function renderComparison(roundIdx) {
     const iss = ls.reduce((s,l)=>s+l.check+l.miss,0);
     const disc= ls.reduce((s,l)=>s+l.disc,0);
     const tot = ls.reduce((s,l)=>s+l.total,0);
-    const comp= aud>0 ? Math.round(ok/aud*100) : 0;
+    const audND= aud - ls.reduce((s,l)=>s+(l.disc||0),0);
+    const comp= audND>0 ? Math.round(ok/audND*100) : 0;
     const pcts= Object.keys(allData).map(l=>agg.locStats[l]?.pct||0);
     const avgP= pcts.length ? Math.round(pcts.reduce((a,b)=>a+b,0)/pcts.length) : 0;
     return {aud, ok, iss, disc, tot, comp, avgP};
@@ -1316,8 +1319,8 @@ function renderComparison(roundIdx) {
     const cs   = curr.locStats[loc];
     if (!ps || !cs) return '';
 
-    const pComp = ps.aud>0 ? Math.round(ps.ok/ps.aud*100) : 0;
-    const cComp = cs.aud>0 ? Math.round(cs.ok/cs.aud*100) : 0;
+    const pComp = (ps.aud-(ps.disc||0))>0 ? Math.round(ps.ok/(ps.aud-(ps.disc||0))*100) : 0;
+    const cComp = (cs.aud-(cs.disc||0))>0 ? Math.round(cs.ok/(cs.aud-(cs.disc||0))*100) : 0;
     const pIss  = ps.check + ps.miss;
     const cIss  = cs.check + cs.miss;
     const diffC = cComp - pComp;
