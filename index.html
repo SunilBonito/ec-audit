@@ -383,7 +383,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
       </div>
       <div style="font-size:11px;font-weight:600;" id="cc-gap"></div>
     </div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;border-left:4px solid #185FA5;">
+    <div id="cc-closure-card" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;border-left:4px solid #185FA5;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#185FA5;">Issue closure rate</div>
         <div style="font-size:24px;font-weight:700;letter-spacing:-0.5px;" id="cc-closure">—</div>
@@ -848,15 +848,11 @@ function renderRound(roundIdx) {
 
   // ── Compliance card ───────────────────────────────────────────────────
   const ccEl   = document.getElementById('cc-overall');
-  const ccCard = document.getElementById('cc-overall-card');
   const ccBar  = document.getElementById('cc-bar');
   if (ccEl && aud > 0) {
     const col = colFn(compliance);
     ccEl.textContent = compliance+'%';
     ccEl.style.color = col;
-    ccCard.style.borderTopColor = col;
-    ccCard.querySelector('.ml').style.color = col;
-    ccCard.style.background = bgFn(compliance);
     if (ccBar) { ccBar.style.width=compliance+'%'; ccBar.style.background=col; }
   }
   const gapEl = document.getElementById('cc-gap');
@@ -874,7 +870,7 @@ function renderRound(roundIdx) {
   const closureEl  = document.getElementById('cc-closure');
   const closureBar = document.getElementById('cc-closure-bar');
   const closureSub = document.getElementById('cc-closure-sub');
-  const closureCard= document.getElementById('cc-closure-card');
+  const closureCard = document.getElementById('cc-closure-card');
   if (closureEl && roundIdx > 0) {
     const prevAgg    = aggregateRound(roundIdx - 1);
     // Per-ERP closure: count ERPs that had issues in prev round but are OK now
@@ -899,7 +895,7 @@ function renderRound(roundIdx) {
       closureEl.textContent = closurePct+'%';
       const cCol = colFn(closurePct);
       closureEl.style.color = cCol;
-      closureCard.style.borderTopColor = cCol;
+      if (closureCard) closureCard.style.borderTopColor = cCol;
       if (closureBar) { closureBar.style.width=Math.min(closurePct,100)+'%'; closureBar.style.background=cCol; }
       if (closureSub) {
         closureSub.textContent = `${resolvedCount} of ${prevIssueCount} issues resolved`;
