@@ -956,6 +956,7 @@ function renderRound(roundIdx) {
     const prevAgg    = aggregateRound(roundIdx - 1);
     prevCatStats = prevAgg.catStats;
   }
+  renderComparison(roundIdx);
   renderCatTable(catStats, prevCatStats);
   renderIssues(flagged);
 
