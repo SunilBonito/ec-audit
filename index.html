@@ -119,8 +119,40 @@ tbody tr:hover td{background:#FAFAF8;}
 .mbf{height:4px;border-radius:999px;background:var(--navy2);}
 .tag{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;}
 .t-ok{background:var(--green-bg);color:var(--green);}
+
+/* Audit comparison */
+.cmp-wrap{margin-bottom:24px;display:none;}
+.cmp-table{width:100%;border-collapse:collapse;border-radius:var(--rl);overflow:hidden;border:1px solid var(--border);}
+.cmp-table th{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:11px 16px;border-bottom:1px solid var(--border);}
+.cmp-table td{font-size:13px;padding:11px 16px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.cmp-table tr:last-child td{border-bottom:none;}
+.cmp-table tbody tr:hover td{background:var(--bg);}
+.cmp-th-blank{background:var(--surface);text-align:left;color:var(--ink3);}
+.cmp-th-a1{background:#E8F0F8;text-align:center;color:var(--navy2);}
+.cmp-th-a2{background:var(--navy);text-align:center;color:rgba(255,255,255,.7);}
+.cmp-label{color:var(--ink2);font-size:12px;}
+.cmp-val{text-align:center;font-weight:600;font-size:15px;font-family:'JetBrains Mono',monospace;}
+.cmp-delta{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px;white-space:nowrap;}
+.d-up{background:var(--green-bg);color:var(--green);}
+.d-dn{background:var(--red-bg);color:var(--red);}
+.d-same{background:var(--bg);color:var(--ink3);}
+.loc-cmp-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px;}
+.loc-cmp-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;}
+.lcc-head{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.lcc-name{font-size:13px;font-weight:700;color:var(--ink);}
+.lcc-city{font-size:10px;color:var(--ink3);margin-top:1px;}
+.lcc-body{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border);}
+.lcc-col{padding:10px 12px;}
+.lcc-col:first-child{border-right:1px solid var(--border);}
+.lcc-round{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin-bottom:4px;}
+.lcc-pct{font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.lcc-sub{font-size:10px;color:var(--ink3);margin-top:2px;}
+.lcc-foot{padding:8px 14px;background:var(--bg);display:flex;justify-content:space-between;align-items:center;font-size:11px;}
+.lcc-foot-label{color:var(--ink3);}
+@media(max-width:680px){.loc-cmp-grid{grid-template-columns:repeat(2,1fr);}}
 .t-wn{background:var(--amber-bg);color:var(--amber);}
 .t-bd{background:var(--red-bg);color:var(--red);}
+.t-disc{background:#F3E8FF;color:#4A1E8C;}
 .t-nd{background:var(--bg);color:var(--ink3);}
 
 /* ISSUES */
@@ -301,10 +333,11 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
       <div class="mv" id="m-catcount" style="color:var(--navy2);">12</div>
       <div class="ms">tap to see breakdown ↓</div>
     </div>
-    <div class="metric" style="cursor:pointer;" onclick="document.getElementById('issues-display').scrollIntoView({behavior:'smooth'})">
+    <div class="metric" style="cursor:pointer;" onclick="document.getElementById('flagged-section').scrollIntoView({behavior:'smooth'})">
       <div class="ml">Issues flagged</div>
       <div class="mv" id="m-iss-kpi" style="color:var(--red);">—</div>
-      <div class="ms" id="m-iss-sub">check + missing only ↓</div>
+      <div class="ms">check + missing · tap to see list ↓</div>
+      <div id="m-iss-preview" style="margin-top:8px;font-size:10px;color:var(--ink3);line-height:1.6;"></div>
     </div>
     <div class="metric" style="cursor:pointer;" onclick="document.getElementById('issues-display').scrollIntoView({behavior:'smooth'})">
       <div class="ml">Discontinued by vendor</div>
@@ -319,7 +352,9 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
         <div>
           <div class="ml" style="color:#1A5C38;">Audit closure compliance</div>
-          <div style="font-size:10px;color:var(--ink3);margin-top:2px;">Condition of sample &amp; unique codes &nbsp;·&nbsp; Conforming ÷ Audited</div>
+          <div style="font-size:10px;color:var(--ink3);margin-top:2px;">
+            Out of all SKUs physically checked, how many are in good condition with proper samples &amp; codes
+          </div>
         </div>
         <div class="mv" id="cc-overall" style="color:#1A5C38;font-size:28px;">—</div>
       </div>
@@ -327,9 +362,9 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
         <div id="cc-bar" style="height:4px;border-radius:999px;width:0%;background:#1A5C38;transition:width 0.6s;"></div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
-        <span style="background:#E4F2EB;color:#1A5C38;border-radius:999px;padding:2px 9px;font-size:10px;font-weight:600;">≥95% Acceptable</span>
-        <span style="background:#FDF0DC;color:#7A4800;border-radius:999px;padding:2px 9px;font-size:10px;font-weight:600;">80–94% Needs attention</span>
-        <span style="background:#FAEBEB;color:#7A1A1A;border-radius:999px;padding:2px 9px;font-size:10px;font-weight:600;">&lt;80% Critical</span>
+        <span style="background:#E4F2EB;color:#1A5C38;border-radius:999px;padding:2px 9px;font-size:10px;font-weight:600;">🟢 ≥95% — Excellent</span>
+        <span style="background:#FDF0DC;color:#7A4800;border-radius:999px;padding:2px 9px;font-size:10px;font-weight:600;">🟡 80–94% — Good, minor gaps to close</span>
+        <span style="background:#FAEBEB;color:#7A1A1A;border-radius:999px;padding:2px 9px;font-size:10px;font-weight:600;">🔴 &lt;80% — Urgent action needed</span>
       </div>
       <div style="font-size:11px;font-weight:600;" id="cc-gap"></div>
     </div>
@@ -384,6 +419,24 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
     </div>
   </div>
 
+  <!-- Audit comparison section -->
+  <div class="cmp-wrap" id="cmp-section">
+    <p class="sh" id="cmp-title">Audit comparison — Audit 1 vs Audit 2</p>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:14px;">
+      <table class="cmp-table" id="cmp-table">
+        <thead>
+          <tr>
+            <th class="cmp-th-blank">Metric</th>
+            <th class="cmp-th-a1" id="cmp-h-prev">Audit 1</th>
+            <th class="cmp-th-a2" id="cmp-h-curr">Audit 2</th>
+          </tr>
+        </thead>
+        <tbody id="cmp-tbody"></tbody>
+      </table>
+    </div>
+    <div class="loc-cmp-grid" id="loc-cmp-grid"></div>
+  </div>
+
   <!-- Category pills (clickable, scroll to table) -->
   <div id="cat-section">
     <p class="sh" style="margin-bottom:10px;">Category breakdown — <span id="cat-round-label">Audit 1</span>
@@ -413,7 +466,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   </div>
 
     <!-- Flagged items -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+  <div id="flagged-section" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
     <p class="sh" style="margin-bottom:0;">Flagged items & comments — <span id="iss-round-label">Audit 1</span></p>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button class="pdf-btn" onclick="exportPDF()" title="Export clean PDF for Teams / slides">📄 Export PDF</button>
@@ -679,8 +732,8 @@ function aggregateRound(roundIdx) {
 
         if (disc === 'yes' || status.includes('disc')) {
           cDisc++;
-          // Discontinued: don't count in audited (excluded from compliance calc)
-          cAud--;
+          // Disc IS audited (completion counts) but NOT conforming (compliance doesn't)
+          // cAud stays incremented — disc reduces compliance % but not completion %
         } else if (conform === 'yes' || status.includes('ok')) {
           cOk++;
         } else if (sample === 'no' || status.includes('missing')) {
@@ -878,7 +931,10 @@ function renderRound(roundIdx) {
     const skuN= allData[loc]?.totalSkus||0;
     const locComp = s&&s.aud>0 ? Math.round(s.ok/s.aud*100) : null;
     const compCol = locComp!==null ? colFn(locComp) : 'var(--ink3)';
-    const compLabel = locComp===null ? '—' : locComp>=COMPLIANCE_TARGET ? 'Acceptable' : locComp>=80 ? 'Needs attention' : 'Critical';
+    const compLabel = locComp===null ? '—'
+      : locComp>=COMPLIANCE_TARGET ? '✓ Excellent'
+      : locComp>=80  ? '⚠ Good — minor gaps'
+      : '✗ Urgent action needed';
 
     if (!s||s.aud===0) {
       lcEl.innerHTML+=`
@@ -1149,25 +1205,183 @@ function renderIssues(flagged) {
   const dlBtn  = document.getElementById('download-issues-btn');
   if (countEl) countEl.textContent = flagged.length ? `${flagged.length.toLocaleString()} items` : '';
   if (dlBtn)   dlBtn.style.display = flagged.length ? 'flex' : 'none';
+
+  // Top 3 examples in the KPI card
+  const preview = document.getElementById('m-iss-preview');
+  if (preview) {
+    preview.innerHTML = flagged.length > 0
+      ? flagged.slice(0,3).map(f =>
+          `<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">· ${f.cat}: ${(f.name||f.comment||'').slice(0,35)}</div>`
+        ).join('') + (flagged.length>3
+          ? `<div style="color:var(--navy2);font-weight:600;margin-top:2px;">+ ${(flagged.length-3).toLocaleString()} more ↓</div>`
+          : '')
+      : '';
+  }
+
   if (!flagged.length) {
     div.innerHTML = '<div class="no-data">No comments or flags in this audit round yet.</div>';
     return;
   }
   div.innerHTML = flagged.map(f => {
     const st  = (f.status||'').toLowerCase();
-    const dot = st.includes('ok')?'var(--green)':st.includes('disc')||st.includes('miss')?'var(--red)':'var(--amber)';
-    const tc  = st.includes('ok')?'t-ok':st.includes('disc')||st.includes('miss')?'t-bd':'t-wn';
-    const tl  = st.includes('ok')?'OK':st.includes('disc')?'Discontinued':st.includes('miss')?'Missing':'Check';
+    const dot = st.includes('disc')?'#4A1E8C':st.includes('miss')||st.includes('check')?'var(--red)':'var(--amber)';
+    const tc  = st.includes('disc')?'t-disc':st.includes('miss')?'t-bd':'t-wn';
+    const tl  = st.includes('disc')?'Discontinued':st.includes('miss')?'Missing':'Check';
+    // Show resolved badge if this ERP is OK in a later round
+    const resolvedBadge = f.resolvedInRound
+      ? `<span class="tag t-ok" style="margin-left:4px;">✓ Fixed in Audit ${f.resolvedInRound}</span>` : '';
     return `<div class="irow">
       <div class="idot" style="background:${dot};"></div>
       <div class="icat">${f.cat}</div>
       <div class="iloc">${f.loc}</div>
       <div class="idesc">${f.name?'<strong>'+f.name+'</strong> — ':''}${f.comment}</div>
-      <span class="tag ${tc}">${tl}</span>
+      <span class="tag ${tc}">${tl}</span>${resolvedBadge}
     </div>`;
   }).join('');
 }
 
+
+// ── AUDIT COMPARISON ──────────────────────────────────────────────────────────
+function renderComparison(roundIdx) {
+  const section = document.getElementById('cmp-section');
+  if (!section) return;
+
+  // Only show from round 2 onwards
+  if (roundIdx === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  const prevIdx  = roundIdx - 1;
+  const currLabel= `Audit ${roundIdx+1}`;
+  const prevLabel= `Audit ${roundIdx}`;
+
+  const curr = aggregateRound(roundIdx);
+  const prev = aggregateRound(prevIdx);
+
+  // Update headers
+  document.getElementById('cmp-title').textContent = `Audit comparison — ${prevLabel} vs ${currLabel}`;
+  document.getElementById('cmp-h-prev').textContent= prevLabel;
+  document.getElementById('cmp-h-curr').textContent= currLabel;
+
+  // Helper: compute totals from locStats
+  const totals = (agg) => {
+    const ls = Object.values(agg.locStats);
+    const aud = ls.reduce((s,l)=>s+l.aud,0);
+    const ok  = ls.reduce((s,l)=>s+l.ok,0);
+    const iss = ls.reduce((s,l)=>s+l.check+l.miss,0);
+    const disc= ls.reduce((s,l)=>s+l.disc,0);
+    const tot = ls.reduce((s,l)=>s+l.total,0);
+    const comp= aud>0 ? Math.round(ok/aud*100) : 0;
+    const pcts= Object.keys(allData).map(l=>agg.locStats[l]?.pct||0);
+    const avgP= pcts.length ? Math.round(pcts.reduce((a,b)=>a+b,0)/pcts.length) : 0;
+    return {aud, ok, iss, disc, tot, comp, avgP};
+  };
+
+  const p = totals(prev);
+  const cr= totals(curr);
+
+  // Compute issue closure rate (prev issues fixed in curr)
+  const prevERP = prev.erpIssueMap;
+  const currERP = curr.erpIssueMap;
+  let prevIssCount = 0, resolvedCount = 0;
+  const activeLocs = Object.keys(allData);
+  for (const loc of activeLocs) {
+    const pLoc = prevERP[loc] || {};
+    const cLoc = currERP[loc] || {};
+    for (const cat of Object.keys(pLoc)) {
+      for (const [erp, hadIssue] of Object.entries(pLoc[cat])) {
+        if (hadIssue) {
+          prevIssCount++;
+          if (cLoc[cat]?.[erp] === false) resolvedCount++;
+        }
+      }
+    }
+  }
+  const closureRate = prevIssCount > 0 ? Math.round(resolvedCount/prevIssCount*100) : null;
+
+  // Delta helper
+  const delta = (prev, curr, higherIsBetter=true, suffix='') => {
+    const diff = curr - prev;
+    if (diff === 0) return `<span class="cmp-delta d-same">No change</span>`;
+    const improved = higherIsBetter ? diff > 0 : diff < 0;
+    const cls = improved ? 'd-up' : 'd-dn';
+    const sign = diff > 0 ? '+' : '';
+    return `<span class="cmp-delta ${cls}">${sign}${diff.toLocaleString()}${suffix}</span>`;
+  };
+
+  // Build table rows
+  const rows = [
+    { label:'Avg completion', pVal:`${p.avgP}%`, cVal:`${cr.avgP}%`,
+      delta: delta(p.avgP, cr.avgP, true, '%'), cColor: cr.avgP===100?'var(--green)':'var(--ink)' },
+    { label:'Audit closure compliance', pVal:`${p.comp}%`, cVal:`${cr.comp}%`,
+      delta: delta(p.comp, cr.comp, true, '%'),
+      cColor: cr.comp>=95?'var(--green)':cr.comp>=80?'var(--amber)':'var(--red)' },
+    { label:'Issues flagged', pVal:p.iss.toLocaleString(), cVal:cr.iss.toLocaleString(),
+      delta: delta(p.iss, cr.iss, false), cColor: cr.iss>0?'var(--red)':'var(--green)' },
+    { label:'Discontinued by vendor', pVal:p.disc.toLocaleString(), cVal:cr.disc.toLocaleString(),
+      delta: delta(p.disc, cr.disc, false), cColor:'#4A1E8C' },
+    { label:'Issue closure rate', pVal:'—',
+      cVal: closureRate!==null ? `${closureRate}%` : '—',
+      delta: closureRate!==null
+        ? `<span class="cmp-delta ${closureRate>=80?'d-up':closureRate>=50?'d-same':'d-dn'}">${resolvedCount.toLocaleString()} of ${prevIssCount.toLocaleString()} fixed</span>`
+        : '',
+      cColor: closureRate!==null ? (closureRate>=80?'var(--green)':closureRate>=50?'var(--amber)':'var(--red)') : 'var(--ink3)' },
+  ];
+
+  const tbody = document.getElementById('cmp-tbody');
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td class="cmp-label">${r.label}</td>
+      <td class="cmp-val" style="color:var(--ink2);">${r.pVal}</td>
+      <td class="cmp-val" style="color:${r.cColor};">${r.cVal} ${r.delta||''}</td>
+    </tr>`).join('');
+
+  // Per-location comparison cards
+  const grid = document.getElementById('loc-cmp-grid');
+  grid.innerHTML = activeLocs.map(loc => {
+    const col  = LOC_COLORS[loc] || '#1A3A5C';
+    const ps   = prev.locStats[loc];
+    const cs   = curr.locStats[loc];
+    if (!ps || !cs) return '';
+
+    const pComp = ps.aud>0 ? Math.round(ps.ok/ps.aud*100) : 0;
+    const cComp = cs.aud>0 ? Math.round(cs.ok/cs.aud*100) : 0;
+    const pIss  = ps.check + ps.miss;
+    const cIss  = cs.check + cs.miss;
+    const diffC = cComp - pComp;
+    const diffI = pIss  - cIss;
+    const compDeltaCls = diffC>0?'d-up':diffC<0?'d-dn':'d-same';
+    const compDeltaTxt = diffC>0?`+${diffC}%`:diffC<0?`${diffC}%`:'No change';
+    const fixedTxt = diffI > 0
+      ? `<span style="color:var(--green);font-weight:600;">${diffI} fixed ✓</span>`
+      : diffI < 0
+        ? `<span style="color:var(--red);font-weight:600;">${Math.abs(diffI)} more</span>`
+        : `<span style="color:var(--ink3);">No change</span>`;
+
+    return `
+      <div class="loc-cmp-card" style="border-top:3px solid ${col};">
+        <div class="lcc-head">
+          <div><div class="lcc-name">${loc}</div><div class="lcc-city">${LOC_CITIES[loc]||''}</div></div>
+          <span class="cmp-delta ${compDeltaCls}">${compDeltaTxt} compliance</span>
+        </div>
+        <div class="lcc-body">
+          <div class="lcc-col">
+            <div class="lcc-round">${prevLabel}</div>
+            <div class="lcc-pct" style="color:${col};">${pComp}%</div>
+            <div class="lcc-sub">${pIss} issues</div>
+          </div>
+          <div class="lcc-col">
+            <div class="lcc-round">${currLabel}</div>
+            <div class="lcc-pct" style="color:${col};">${cComp}%</div>
+            <div class="lcc-sub">${cIss} issues</div>
+          </div>
+        </div>
+        <div class="lcc-foot">
+          <span class="lcc-foot-label">Issues resolved</span>
+          ${fixedTxt}
+        </div>
+      </div>`;
+  }).join('');
+}
 
 loadAllData();
 </script>
