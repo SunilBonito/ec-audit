@@ -447,7 +447,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button class="pdf-btn" onclick="exportPDF()" title="Export clean PDF for Teams / slides">📄 Export PDF</button>
       <button id="download-issues-btn" onclick="downloadIssuesExcel()"
-        style="display:none;align-items:center;gap:6px;background:var(--navy);color:#fff;border:none;
+        style="display:flex;align-items:center;gap:6px;background:var(--navy);color:#fff;border:none;
                border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;
                font-family:inherit;transition:background 0.15s;white-space:nowrap;">
         ⬇ Download Excel
@@ -1179,7 +1179,7 @@ function renderIssues(flagged) {
   const countEl= document.getElementById('issues-count');
   const dlBtn  = document.getElementById('download-issues-btn');
   if (countEl) countEl.textContent = flagged.length ? `${flagged.length.toLocaleString()} items` : '';
-  if (dlBtn)   dlBtn.style.display = flagged.length ? 'flex' : 'none';
+  // Download button always visible
 
   // Top 3 examples in the KPI card
   const preview = document.getElementById('m-iss-preview');
