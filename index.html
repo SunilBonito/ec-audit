@@ -445,8 +445,8 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   <div id="flagged-section" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
     <p class="sh" style="margin-bottom:0;">Flagged items & comments — <span id="iss-round-label">Audit 1</span></p>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <button class="pdf-btn" onclick="exportPDF()" title="Export clean PDF for Teams / slides">📄 Export PDF</button>
-      <button id="download-issues-btn" onclick="downloadIssuesExcel()"
+      <button class="pdf-btn" onclick="if(typeof exportPDF==='function'){exportPDF()}else{alert('Loading...')}" title="Export clean PDF for Teams / slides">📄 Export PDF</button>
+      <button id="download-issues-btn" onclick="if(typeof downloadIssuesExcel==='function'){downloadIssuesExcel()}else{alert('Loading...')}"
         style="display:flex;align-items:center;gap:6px;background:var(--navy);color:#fff;border:none;
                border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;
                font-family:inherit;transition:background 0.15s;white-space:nowrap;">
@@ -496,6 +496,8 @@ let allData = {};
 let currentRound  = 0;
 let currentFilter = 'All';  // 'All' | 'Andheri' | 'Thane' | 'HSR' | 'HRBR'
 let catChart=null, donutChart=null, trendChart=null;
+let _cmData = null;
+let _lastFlagged = [];
 
 // ── LOADING ───────────────────────────────────────────────────────────────────
 const setBar = p => document.getElementById('lb').style.width = p+'%';
@@ -1152,7 +1154,7 @@ function downloadIssuesExcel() {
   XLSX.utils.book_append_sheet(wb2, ws, 'Flagged Items');
 
   // Sheet 2: Common Missing (SKUs missing in ALL audited locations)
-  if (_cmData && _cmData.total > 0) {
+  if (typeof _cmData !== 'undefined' && _cmData && _cmData.total > 0) {
     const cmHeaders = ['Category','ERP Code','Material Name','Brand',
                        'Missing in locations','Audit Round'];
     const cmRows = [];
