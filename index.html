@@ -381,37 +381,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   <p class="sh">Location progress — <span id="loc-round-label">Audit 1</span></p>
   <div class="loc-grid" id="loc-cards"></div>
 
-  <!-- Charts -->
-  <div class="charts-row">
-    <div class="card">
-      <div class="ct">Category completion</div>
-      <div class="cs" id="chart-sub">Audit 1 — all locations</div>
-      <div class="legend">
-        <div class="leg"><div class="lsq" style="background:#1A5C38;"></div>Audited</div>
-        <div class="leg"><div class="lsq" style="background:#DDD9D0;"></div>Pending</div>
-      </div>
-      <div style="position:relative;height:340px;">
-        <canvas id="catChart" role="img" aria-label="Category completion bar chart">Category completion chart.</canvas>
-      </div>
-    </div>
-    <div class="card">
-      <div class="ct">Status breakdown</div>
-      <div class="cs">Audited SKUs this round</div>
-      <div style="position:relative;height:200px;margin-bottom:12px;">
-        <canvas id="donutChart" role="img" aria-label="Status donut chart">Status chart.</canvas>
-      </div>
-      <div id="donut-legend" style="display:flex;flex-direction:column;gap:7px;"></div>
-    </div>
-  </div>
 
-  <!-- Trend across rounds -->
-  <div class="trend-card" id="trend-section" style="display:none;">
-    <div class="ct">Audit progress over rounds</div>
-    <div class="cs">% completion per location across all audit rounds with data</div>
-    <div style="position:relative;height:220px;">
-      <canvas id="trendChart" role="img" aria-label="Trend line chart across audit rounds">Trend chart.</canvas>
-    </div>
-  </div>
 
   <!-- Category pills (clickable, scroll to table) -->
   <div id="cat-section">
@@ -976,9 +946,6 @@ function renderRound(roundIdx) {
     }
   });
 
-  renderCatChart(catStats, locColor);
-  renderDonut(locStats, locColor);
-  renderTrend(activeLocs);
   // Compute previous round stats for closure compliance
   let prevCatStats = null;
   if (roundIdx > 0) {
@@ -1417,7 +1384,8 @@ function renderIssueBreakdown(roundIdx) {
 
   for (const loc of locsToShow) {
     for (const [catName, rows] of Object.entries(allData[loc].sheets)) {
-      if (!catData[catName]) catData[catName] = {miss:0,sticker:0,broken:0,issues:0,aud:0};
+      if (!catData[catName]) catData[catName] = {miss:0,sticker:0,broken:0,issues:0,aud:0,total:0};
+        catData[catName].total++;
       for (const row of rows) {
         const base    = FIXED + roundIdx * BLOCK;
         const dateV   = (row[base+0]||'').toString().trim();
@@ -1464,7 +1432,7 @@ function renderIssueBreakdown(roundIdx) {
     const dash = '-';
     return `<tr>
       <td><strong>${cat}</strong>
-        <span style="color:var(--ink3);font-size:11px;font-weight:400;"> (${d.issues} issues)</span>
+        <span style="color:var(--ink3);font-size:11px;font-weight:400;"> (${d.total} SKUs)</span>
       </td>
       <td style="text-align:center;font-weight:600;color:${d.miss>0?'var(--red)':'var(--ink3)'};">
         ${d.miss||dash}</td>
