@@ -777,7 +777,7 @@ function renderRound(roundIdx) {
   ['loc-round-label','cat-round-label','iss-round-label'].forEach(id=>{
     document.getElementById(id).textContent = `${roundLabel} · ${filterLabel}`;
   });
-  document.getElementById('chart-sub').textContent = `${roundLabel} — ${filterLabel}`;
+  // chart-sub removed
 
   // ── Banner: clean, no date/auditor in all-locations view ──────────────
   const dates   = activeLocs.map(l=>allData[l].roundDates[roundIdx]).filter(Boolean);
@@ -985,98 +985,12 @@ function renderCatPills(catStats) {
   }).join('');
 }
 
-function renderCatChart(catStats, accentColor) {
-  const cats   = Object.entries(catStats).sort((a,b)=>b[1].total-a[1].total);
-  const labels = cats.map(([n])=>n.length>22?n.slice(0,22)+'…':n);
-  const pcts   = cats.map(([,s])=>s.total>0?Math.round(s.aud/s.total*100):0);
-  const pend   = pcts.map(p=>100-p);
-  const barCol = accentColor && accentColor !== '#1A3A5C' ? accentColor : '#1A5C38';
-  if (catChart) catChart.destroy();
-  catChart = new Chart(document.getElementById('catChart'),{
-    type:'bar',
-    data:{labels,datasets:[
-      {label:'Audited',data:pcts,backgroundColor:barCol,borderRadius:3,barPercentage:0.65},
-      {label:'Pending',data:pend,backgroundColor:'#DDD9D0',borderRadius:3,barPercentage:0.65},
-    ]},
-    options:{
-      indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${Math.round(ctx.raw)}%`}}},
-      scales:{
-        x:{stacked:true,max:100,ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},
-        y:{stacked:true,ticks:{font:{size:10}},grid:{display:false}}
-      }
-    }
-  });
-}
+function renderCatChart(catStats, accentColor) { }
 
-// ── STATUS DONUT (filtered) ────────────────────────────────────────────────────
-function renderDonut(locStats) {
-  const ok   = Object.values(locStats).reduce((s,l)=>s+l.ok,0);
-  const chk  = Object.values(locStats).reduce((s,l)=>s+l.check,0);
-  const miss = Object.values(locStats).reduce((s,l)=>s+l.miss,0);
-  const disc = Object.values(locStats).reduce((s,l)=>s+l.disc,0);
-  const rbs  = Object.values(locStats).reduce((s,l)=>s+(l.rbs||0),0);
-  const pend = Object.values(locStats).reduce((s,l)=>s+(l.total-l.aud),0);
-  const dData   = [ok,chk,miss,disc,rbs,pend];
-  const dLabels = ['Conforming','Needs check','Missing','Discontinued','Rep. by Sample','Not audited'];
-  const dColors = ['#1A5C38','#7A4800','#7A1A1A','#4A1E8C','#9333EA','#DDD9D0'];
-  if (donutChart) donutChart.destroy();
-  donutChart = new Chart(document.getElementById('donutChart'),{
-    type:'doughnut',
-    data:{labels:dLabels,datasets:[{data:dData,backgroundColor:dColors,borderWidth:2,borderColor:'#fff'}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw.toLocaleString()}`}}}}
-  });
-  document.getElementById('donut-legend').innerHTML = dLabels.map((l,i)=>`
-    <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;">
-      <span style="display:flex;align-items:center;gap:5px;">
-        <span style="width:9px;height:9px;border-radius:2px;background:${dColors[i]};display:inline-block;flex-shrink:0;"></span>
-        <span style="color:var(--ink2);">${l}</span>
-      </span>
-      <span class="mono" style="font-weight:500;color:var(--ink);">${dData[i].toLocaleString()}</span>
-    </div>`).join('');
-}
+function renderDonut(locStats) { }
 
-// ── TREND LINE (filtered by activeLocs) ───────────────────────────────────────
-function renderTrend(activeLocs) {
-  const roundsWithData = [];
-  for (let r=0; r<MAX_ROUNDS; r++) {
-    if (activeLocs.some(l=>allData[l].roundDates[r])) roundsWithData.push(r);
-  }
-  if (roundsWithData.length < 2) {
-    document.getElementById('trend-section').style.display='none'; return;
-  }
-  document.getElementById('trend-section').style.display='block';
-  const labels   = roundsWithData.map(r=>`Audit ${r+1}`);
-  const datasets = activeLocs.map(loc=>{
-    const col  = LOC_COLORS[loc]||'#888';
-    const data = roundsWithData.map(r=>{
-      // Temporarily switch filter to get per-loc data
-      const saved = currentFilter;
-      currentFilter = loc;
-      const {locStats} = aggregateRound(r);
-      currentFilter = saved;
-      return locStats[loc]?.pct ?? null;
-    });
-    return {label:loc,data,borderColor:col,backgroundColor:col+'22',
-            tension:0.3,pointRadius:5,pointBackgroundColor:col,fill:false};
-  });
-  if (trendChart) trendChart.destroy();
-  trendChart = new Chart(document.getElementById('trendChart'),{
-    type:'line',
-    data:{labels,datasets},
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10}}},
-      scales:{
-        y:{min:0,max:100,ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},
-        x:{ticks:{font:{size:11}},grid:{display:false}}
-      }
-    }
-  });
-}
+function renderTrend(activeLocs) { }
 
-// ── CATEGORY TABLE (filtered) ─────────────────────────────────────────────────
 function renderCatTable(catStats, prevCatStats) {
   const tbody = document.getElementById('cat-tbody');
   tbody.innerHTML = '';
