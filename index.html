@@ -1298,8 +1298,11 @@ function renderIssueBreakdown(roundIdx) {
 
   for (const loc of locsToShow) {
     for (const [catName, rows] of Object.entries(allData[loc].sheets)) {
-      if (!catData[catName]) catData[catName] = {miss:0,sticker:0,broken:0,issues:0,aud:0,total:0};
-        catData[catName].total++;
+      if (!catData[catName]) {
+        // Count total SKUs from this category (same across all locations)
+        const totalSKUs = rows.filter(r=>(r[1]||'').toString().trim()).length;
+        catData[catName] = {miss:0,sticker:0,broken:0,issues:0,aud:0,total:totalSKUs};
+      }
       for (const row of rows) {
         const base    = FIXED + roundIdx * BLOCK;
         const dateV   = (row[base+0]||'').toString().trim();
