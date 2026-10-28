@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{
   --navy:#0F2340;--navy2:#1A3A5C;
@@ -287,6 +288,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:4px;paddi
   <div class="nav-brand">Bonito Designs <span>EC Audit</span></div>
   <div class="nav-round-tabs" id="round-tabs"></div>
   <div class="nav-actions">
+    <button class="refresh-btn" id="png-btn" onclick="downloadPNG()" style="background:#185FA5;margin-right:6px;">⬇ PNG</button>
     <button class="refresh-btn" onclick="loadAllData()">↻ Refresh</button>
   </div>
 </nav>
@@ -1367,6 +1369,66 @@ function renderIssueBreakdown(roundIdx) {
 }
 
 loadAllData();
+
+// ── PNG DOWNLOAD ──────────────────────────────────────────────────────────────
+async function downloadPNG() {
+  const btn = document.getElementById('png-btn');
+  const orig = btn.textContent;
+  btn.textContent = 'Capturing...';
+  btn.disabled = true;
+
+  try {
+    const mainEl   = document.getElementById('main-content');
+    // Capture down to and including the Issue Breakdown by Category section
+    const stopEl   = document.getElementById('issue-breakdown-section');
+    const fallback = mainEl.querySelector('.tcard');
+    const endEl    = (stopEl && stopEl.style.display !== 'none') ? stopEl : fallback;
+
+    if (!endEl) {
+      alert('No data loaded yet - please wait for data to load first.');
+      return;
+    }
+
+    const mainRect = mainEl.getBoundingClientRect();
+    const endRect  = endEl.getBoundingClientRect();
+    const captureH = Math.round(endRect.bottom - mainRect.top) + 16; // +16px bottom padding
+
+    const canvas = await html2canvas(mainEl, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#F4F2EE',
+      scrollX: -window.scrollX,
+      scrollY: -window.scrollY,
+      windowWidth: document.documentElement.scrollWidth,
+      height: captureH,
+      y: mainEl.offsetTop,
+    });
+
+    // Crop to exact captureH in case html2canvas renders extra
+    const cropped  = document.createElement('canvas');
+    cropped.width  = canvas.width;
+    cropped.height = captureH * 2; // scale:2
+    const ctx = cropped.getContext('2d');
+    ctx.drawImage(canvas, 0, 0);
+
+    const roundLabel = document.getElementById('cat-round-label')?.textContent || 'Audit';
+    const dateStr    = new Date().toISOString().slice(0, 10);
+    const locLabel   = currentFilter === 'All' ? 'AllECs' : currentFilter;
+    const filename   = `EC_Audit_${locLabel}_${roundLabel.replace(/[\s·]+/g,'_')}_${dateStr}.png`;
+
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = cropped.toDataURL('image/png');
+    link.click();
+  } catch(e) {
+    console.error('PNG export failed:', e);
+    alert('PNG export failed. Please try again.');
+  } finally {
+    btn.textContent = orig;
+    btn.disabled = false;
+  }
+}
 </script>
 </body>
 </html>
